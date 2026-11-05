@@ -1,0 +1,18 @@
+{
+  "captured": "2026-11-04",
+  "screenshot": {
+    "path": "docs/screenshot.png",
+    "sha256": "a20f241f33e1aacce54d2c63b73b9059fda42a32afc01cb66313a691f1315352",
+    "viewport": "1440x900 @2x, full page",
+    "badge": "Live engine"
+  },
+  "og": {
+    "path": "frontend/public/og.png",
+    "sha256": "a702e107f0f4d71b81e9a3bb5b348aef5bc9eec8ba1c00b9e62fff7d4aaa6e23",
+    "viewport": "1200x630 @2x, zoom 0.75",
+    "badge": "Demo data",
+    "build": "production, no NEXT_PUBLIC_API_URL",
+    "metric_cards": "VAR 95% (1D) 1.67% $16,659 VAR 99% (1D) 3.05% $30,542 CVAR 95% 2.69% $26,929 MAX DD -30.84% SHARPE 0.13 SORTINO 0.18 CAGR 2.79% ANNUAL VOL 17.80% CALMAR 0.09 SKEWNESS -0.51 EXCESS KURT. 5.38 VAR 95% (10D) 5.27%"
+  },
+  "metric_cards": "VAR 95% (1D) 1.62% $16,217 VAR 99% (1D) 3.04% $30,428 CVAR 95% 2.68% $26,792 MAX DD -30.84% SHARPE 0.13 SORTINO 0.18 CAGR 2.79% ANNUAL VOL 17.81% CALMAR 0.09 SKEWNESS -0.51 EXCESS KURT. 5.38 VAR 95% (10D) 5.13%"
+}

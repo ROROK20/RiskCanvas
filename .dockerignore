@@ -1,0 +1,44 @@
+# Build context hygiene for the backend image (context = repo root).
+# Keeps the Python image small and reproducible: nothing here is needed to
+# `pip install -e .` and run uvicorn, and several entries (node_modules, .next,
+# .git, .env*) would bloat the context or leak local state into the image.
+
+# Python build/cache artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg
+
+# Node / frontend — not part of the backend image at all
+node_modules/
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+.next/
+
+# Version control & CI
+.git/
+.gitignore
+.github/
+
+# Local environment & secrets (never bake into an image)
+.env
+.env.*
+*.local
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+
+# Docs & meta not needed at runtime (README is still read by setup.py, so keep it)
+docs/
+CHANGELOG.md
+CONTRIBUTING.md
+CODE_OF_CONDUCT.md
+SECURITY.md

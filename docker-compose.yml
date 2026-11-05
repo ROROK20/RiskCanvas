@@ -1,0 +1,36 @@
+# RiskCanvas full stack — one command:  docker compose up --build
+#
+#   backend  → FastAPI engine (numpy/scipy)  http://localhost:8004
+#   frontend → Next.js dashboard             http://localhost:3004
+#
+# The frontend POSTs synthetic per-asset returns to the backend, which computes
+# REAL VaR / CVaR / stress / Monte-Carlo offline (no market-data network calls).
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: riskcanvas-backend
+    ports:
+      - "8004:8004"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://localhost:8004/health').status==200 else sys.exit(1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Baked in at build: the browser (on this machine) calls the
+        # host-published backend port. A runtime env var would have no effect.
+        NEXT_PUBLIC_API_URL: http://localhost:8004
+    image: riskcanvas-frontend
+    ports:
+      - "3004:3004"
+    depends_on:
+      - backend

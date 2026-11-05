@@ -1,0 +1,34 @@
+# RiskCanvas — pinned runtime + test dependency set.
+#
+# Every entry is an exact pin: the versions a fresh Python 3.12 venv runs the test
+# suite on. SECURITY.md states the dated `pip-audit` result for this file.
+# This file is the reproducible manifest: the Dockerfile installs from it, and
+# it doubles as a pip constraints file for the editable install —
+#   pip install -e ".[dev]" -c requirements.txt
+# `setup.py` deliberately keeps compatible-version FLOORS instead of these
+# pins, so the package stays installable alongside other libraries; the pins
+# live here.
+#
+# These pins need Python 3.12+: numpy 2.5.1 and scipy 1.18.0 publish no 3.11
+# wheels (the package itself supports 3.11 via setup.py's floors).
+#
+# Bumping a pin: raise it, re-run `pytest tests/`, re-run
+# `pip-audit -r requirements.txt`, and update SECURITY.md's dated line the same
+# day.
+yfinance==1.5.2
+pandas==3.0.5
+numpy==2.5.1
+scipy==1.18.0
+fastapi==0.141.1
+# starlette is fastapi's ASGI core (transitive), pinned like everything else
+# here to the version the suite runs on. It must stay >= 1.3.1:
+# that excludes PYSEC-2026-248 (request.url host spoofing) and PYSEC-2026-249
+# (urlencoded form-limit bypass / DoS); setup.py keeps that security floor.
+# Never pin below it. See SECURITY.md.
+starlette==1.10.0
+uvicorn==0.52.0
+pydantic==2.13.4
+python-dotenv==1.2.2
+pytest==9.1.1
+pytest-cov==7.1.0
+httpx==0.28.1

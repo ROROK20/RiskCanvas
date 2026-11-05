@@ -1,0 +1,34 @@
+# Build context hygiene for the frontend image (context = ./frontend).
+# node_modules and .next are rebuilt inside the image (deps + builder stages),
+# so shipping the local copies only bloats the context and risks baking in
+# host-arch binaries or stale build output.
+
+# Installed deps & build output (regenerated in-image)
+node_modules/
+.next/
+out/
+build/
+dist/
+
+# Next / TS caches
+*.tsbuildinfo
+next-env.d.ts
+
+# Local environment & secrets
+.env
+.env.*
+*.local
+
+# Version control & CI
+.git/
+.gitignore
+
+# Editor / OS cruft
+.vscode/
+.idea/
+.DS_Store
+
+# Python cruft (in case a stray venv/cache lives under frontend/)
+__pycache__/
+*.py[cod]
+.pytest_cache/

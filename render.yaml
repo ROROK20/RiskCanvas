@@ -1,0 +1,22 @@
+# Render blueprint for the RiskCanvas API.
+# Deploy with: Render dashboard → New → Blueprint → point at this repo.
+# (This provisions the backend engine; deploy the frontend on Vercel.)
+#
+# This exposes the API publicly with no auth, rate/concurrency limit,
+# body-size limit or proxy; one request at the caps costs about 2 s of CPU
+# on an 8-core laptop (SECURITY.md timing table, measured 2026-11-03), more on
+# this plan. Read SECURITY.md ("The one-click deploy has none of those limits")
+# before sharing the URL.
+
+services:
+  - type: web
+    name: riskcanvas-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PORT
+        value: 8004

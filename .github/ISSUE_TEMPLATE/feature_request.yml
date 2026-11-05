@@ -1,0 +1,63 @@
+name: ✨ Feature Request
+description: Suggest a new metric, model, scenario, or improvement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting an improvement to RiskCanvas! Please describe the
+        idea and the problem it solves.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / motivation
+      description: What problem does this solve? What are you trying to do today that is hard or impossible?
+      placeholder: I want to compute Expected Shortfall under a t-distribution, but...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the API, metric, model, or behavior you'd like to see.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      description: Which part of RiskCanvas does this touch?
+      options:
+        - Risk metrics (VaR / CVaR / drawdown)
+        - Performance metrics
+        - Monte Carlo simulation
+        - Stress / scenario testing
+        - Portfolio loading / data
+        - REST API
+        - Frontend demo
+        - Docs / examples
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternative approaches you've thought about.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I'm willing to help implement this (optional).
+          required: false
