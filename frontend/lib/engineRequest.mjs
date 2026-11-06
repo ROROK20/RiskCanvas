@@ -72,7 +72,7 @@ export function demoReason(error) {
   return { kind: "engine_error", status: error instanceof EngineHttpError ? error.status : null };
 }
 
-const ESTIMATES = "the numbers below are approximate in-browser estimates from the same synthetic series.";
+const ESTIMATES = "the numbers on this page are approximate in-browser estimates from the same synthetic series.";
 
 /**
  * Every string the page shows for in-browser numbers, by why it has no engine result.

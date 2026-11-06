@@ -56,7 +56,7 @@ const MARKET_TOL = 1e-9; // market_drawdown IS the documented value, passed thro
 const PORT_TOL = 0.0005; // beta-1 portfolio dd = documented dd (wire rounds to 4 dp)
 const LOW_BETA = 0.3;
 
-const fmtPct = (n) => `${(n * 100).toFixed(2)}%`; // mirrors frontend page.tsx
+const fmtPct = (n) => `${(n * 100).toFixed(2)}%`; // mirrors frontend/lib/format.ts
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 // Same structure and strings, numbers within 1e-12: browsers and Node differ in
 // the last bit of Math functions, which the 750-day synthetic series inherit.
@@ -480,13 +480,13 @@ try {
     for (let i = 0; i < 5; i++) await demo.getByRole("button", { name: "✕" }).first().click();
     const held = await demo.getByRole("button", { name: "✕" }).count();
     if (held !== 1) throw new Error(`expected TSLA alone, ${held} assets held`);
-    const gfc = demo.locator("div.rounded-lg.p-3", { hasText: "Global Financial Crisis" }).first();
+    const gfc = demo.getByTestId("stress-rung").filter({ hasText: "Global Financial Crisis" }).first();
     try {
       await gfc.getByText("-79.94%", { exact: true }).waitFor({ timeout: 15000 });
     } catch {
       throw new Error(`GFC card reads: ${(await gfc.innerText()).replace(/\s+/g, " ")}`);
     }
-    const losses = (await demo.locator("div.rounded-lg.p-3 .text-lg.font-bold").allInnerTexts()).map((t) => parseFloat(t));
+    const losses = (await demo.getByTestId("stress-loss").allInnerTexts()).map((t) => parseFloat(t));
     if (losses.length !== 6) throw new Error(`expected 6 scenarios, got ${losses.length}`);
     const bad = losses.filter((v) => !(v > -100 && v <= 0));
     if (bad.length) throw new Error(`losses at or beyond -100%: ${bad.join(", ")}`);

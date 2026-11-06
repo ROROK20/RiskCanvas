@@ -2,45 +2,372 @@
 @tailwind components;
 @tailwind utilities;
 
+/*
+ * A dark flight deck: graphite panel, readouts in soft white, nothing lit while
+ * things are normal. The neutrals lean a little toward the one amber, which is
+ * kept for tail days and stress magnitude. --fault appears only when the page
+ * itself has a problem (an invalid input, a failed fallback), never on a figure.
+ */
 :root {
-  --bg: #0a0e1a;
+  --bg: oklch(0.215 0.005 80);
+  --raised: oklch(0.255 0.005 80);
+  --rule: oklch(0.335 0.005 80);
+  --rule-strong: oklch(0.54 0.006 80);
+  --label: oklch(0.76 0.006 80);
+  --readout: oklch(0.94 0.006 85);
+
+  --segment: oklch(0.37 0.006 80);
+  --bar: oklch(0.55 0.006 80);
+  --band-outer: oklch(0.32 0.006 80);
+  --band-inner: oklch(0.43 0.006 80);
+
+  --amber: oklch(0.82 0.145 78);
+  --amber-dim: oklch(0.62 0.105 76);
+  --fault: oklch(0.74 0.15 30);
+
+  /* Figures dim while they wait on a recompute (see [data-stale]). */
+  --figure: var(--readout);
+  --figure-amber: var(--amber);
+
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-* {
-  border-color: rgb(28 37 64);
+[data-stale="true"] {
+  --figure: var(--label);
+  --figure-amber: var(--amber-dim);
+}
+
+html {
+  background: var(--bg);
+  color-scheme: dark;
 }
 
 body {
-  background: linear-gradient(135deg, #0a0e1a 0%, #0d1424 100%);
-  color: #e5e7eb;
+  background: var(--bg);
+  color: var(--readout);
   min-height: 100vh;
-  font-feature-settings: "cv11", "ss01";
+  line-height: 1.55;
+  letter-spacing: 0.005em;
 }
 
-.glow {
-  box-shadow: 0 0 40px -10px rgba(59, 130, 246, 0.3);
+h1,
+h2,
+h3 {
+  text-wrap: balance;
 }
 
-.metric-card {
-  background: linear-gradient(180deg, #0f1525 0%, #0a0f1f 100%);
-  border: 1px solid rgb(28 37 64);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  transition: border-color 0.2s ease;
+:focus-visible {
+  outline: 2px solid var(--readout);
+  outline-offset: 2px;
 }
 
-.metric-card:hover {
-  border-color: rgb(59 130 246 / 0.5);
+input[type="range"] {
+  accent-color: var(--label);
 }
 
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Figures, wherever they appear. The colour change is the only motion they get. */
+.figure {
+  color: var(--figure);
+  transition: color 200ms var(--ease-out-quart);
 }
-::-webkit-scrollbar-track {
-  background: #0a0e1a;
+
+.figure-amber {
+  color: var(--figure-amber);
+  transition: color 200ms var(--ease-out-quart);
 }
-::-webkit-scrollbar-thumb {
-  background: #1c2540;
-  border-radius: 3px;
+
+/* Instrument legend: engraved capitals. */
+.legend {
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--label);
+}
+
+/*
+ * Allocation strip. A segment too narrow for its widest line drops the label; the
+ * sliders below still name it. data-fit is that line's length: see AllocationStrip.
+ */
+.strip-segment {
+  container-type: inline-size;
+  overflow: hidden;
+}
+
+.strip-label {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  padding: 0 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  white-space: nowrap;
+}
+
+@media (min-width: 640px) {
+  .strip-label {
+    padding: 0 0.5rem;
+  }
+}
+
+@container (max-width: 2.0625rem) {
+  .strip-label[data-fit="s"] {
+    display: none;
+  }
+}
+
+@container (max-width: 2.3125rem) {
+  .strip-label[data-fit="m"] {
+    display: none;
+  }
+}
+
+@container (max-width: 2.5625rem) {
+  .strip-label[data-fit="l"] {
+    display: none;
+  }
+}
+
+/*
+ * Instrument panel. One flat list, in reading order: three one-day tail
+ * instruments, eight data lines, then the ten-day VaR, which sits with the tail
+ * instruments on screen. Each tail instrument reads against a graduated scale with a
+ * pointer; all four scales share a range, so the pointers compare directly.
+ */
+.panel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: 1rem;
+  row-gap: 1.5rem;
+}
+
+.panel > .scale-readout {
+  order: 0;
+}
+
+.panel > .dataline {
+  order: 1;
+  grid-column: 1 / -1;
+}
+
+.panel > .dataline ~ .dataline {
+  margin-top: -1.5rem;
+}
+
+.scale-readout {
+  --readout-h: 6.5rem;
+  --travel: calc(var(--readout-h) - 0.1875rem);
+  position: relative;
+  height: var(--readout-h);
+  padding-left: 1.125rem;
+}
+
+/* The scale: a rail with a graduation at every quarter. */
+.scale-readout::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0.4375rem;
+  border-left: 1px solid var(--rule-strong);
+  border-top: 1px solid var(--rule-strong);
+  background: repeating-linear-gradient(to top, var(--rule-strong) 0 1px, transparent 1px 25%);
+}
+
+/* The pointer travels the rail by transform, so a change moves no layout. */
+.scale-readout::after {
+  content: "";
+  position: absolute;
+  left: -0.0625rem;
+  bottom: 0;
+  width: 0.625rem;
+  height: 0.1875rem;
+  background: var(--figure);
+  transform: translateY(calc(var(--level, 0) * var(--travel) * -1));
+  transition:
+    transform 200ms var(--ease-out-quart),
+    background-color 200ms var(--ease-out-quart);
+}
+
+.dataline dt {
+  white-space: nowrap;
+}
+
+.dataline {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3125rem 0;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Laptop: the four scales in a row, the data lines in two columns under them. */
+@media (min-width: 1024px) {
+  .panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    column-gap: 2rem;
+    row-gap: 0;
+  }
+
+  .panel > .scale-readout {
+    margin-bottom: 1rem;
+  }
+
+  .panel > .dataline {
+    grid-column: span 2;
+  }
+
+  .panel > .dataline ~ .dataline {
+    margin-top: 0;
+  }
+}
+
+/*
+ * Desktop: one band, scales on the left and the data lines beside them. 1200 px is
+ * the link preview's viewport: e2e/capture.mjs zooms the body there, and a media query
+ * still sees 1200, so this tier is what holds all twelve readouts in the preview.
+ */
+@media (min-width: 1200px) {
+  .panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) repeat(2, minmax(0, 0.86fr));
+    grid-template-rows: repeat(4, auto);
+    column-gap: 1.5rem;
+  }
+
+  .scale-readout {
+    --readout-h: 8.75rem;
+  }
+
+  .panel > .scale-readout {
+    grid-row: 1 / span 4;
+    margin-bottom: 0;
+  }
+
+  .panel > .scale-readout:nth-child(1) {
+    grid-column: 1;
+  }
+  .panel > .scale-readout:nth-child(2) {
+    grid-column: 2;
+  }
+  .panel > .scale-readout:nth-child(3) {
+    grid-column: 3;
+  }
+  .panel > .scale-readout:nth-child(12) {
+    grid-column: 4;
+  }
+
+  .panel > .dataline {
+    grid-column: 5;
+  }
+  .panel > .dataline:nth-child(n + 8) {
+    grid-column: 6;
+  }
+  .panel > .dataline:nth-child(4),
+  .panel > .dataline:nth-child(8) {
+    grid-row: 1;
+  }
+  .panel > .dataline:nth-child(5),
+  .panel > .dataline:nth-child(9) {
+    grid-row: 2;
+  }
+  .panel > .dataline:nth-child(6),
+  .panel > .dataline:nth-child(10) {
+    grid-row: 3;
+  }
+  .panel > .dataline:nth-child(7),
+  .panel > .dataline:nth-child(11) {
+    grid-row: 4;
+  }
+}
+
+/*
+ * Stress ladder. Rungs and the axis above them share one grid, so a bar's length
+ * reads against the same 0 to 100% scale on every rung.
+ */
+.rung {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  grid-template-areas:
+    "rank name"
+    "rank bar"
+    "rank loss"
+    "rank meta";
+  column-gap: 0.5rem;
+}
+
+.rung-rank {
+  grid-area: rank;
+}
+.rung-name {
+  grid-area: name;
+}
+.rung-bar {
+  grid-area: bar;
+}
+.rung-loss {
+  grid-area: loss;
+}
+.rung-meta {
+  grid-area: meta;
+}
+
+@media (min-width: 1024px) {
+  .rung {
+    grid-template-columns: 1.75rem minmax(0, 21rem) minmax(0, 1fr) 10rem;
+    grid-template-areas:
+      "rank name bar loss"
+      "rank name meta loss";
+    column-gap: 1.5rem;
+  }
+}
+
+.stress-track {
+  position: relative;
+  height: 0.875rem;
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+/* The bar's length is scaled, not sized, so a change moves no layout. */
+.stress-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left;
+  transition: transform 200ms var(--ease-out-quart);
+}
+
+.stress-grid {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--rule);
+}
+
+/* The S&P 500 path's own drawdown, on the same scale as the bar it crosses. */
+.market-tick {
+  position: absolute;
+  top: -0.1875rem;
+  bottom: -0.1875rem;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--readout);
+  box-shadow: 0 0 0 1px var(--bg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* With scripting off nothing is computing: say so instead of "Computing…". */
+@media (scripting: none) {
+  .needs-script {
+    display: none;
+  }
 }

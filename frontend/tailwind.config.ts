@@ -8,18 +8,23 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        bg: "#0a0e1a",
-        panel: "#0f1525",
-        border: "#1c2540",
-        accent: {
-          green: "#10b981",
-          red: "#ef4444",
-          blue: "#3b82f6",
-          purple: "#a855f7",
-        },
+        bg: "var(--bg)",
+        raised: "var(--raised)",
+        rule: "var(--rule)",
+        "rule-strong": "var(--rule-strong)",
+        label: "var(--label)",
+        readout: "var(--readout)",
+        segment: "var(--segment)",
+        amber: "var(--amber)",
+        "amber-dim": "var(--amber-dim)",
+        fault: "var(--fault)",
+      },
+      borderColor: {
+        DEFAULT: "var(--rule)",
       },
       fontFamily: {
-        mono: ["JetBrains Mono", "ui-monospace", "monospace"],
+        sans: ["var(--font-b612)", "Arial", "sans-serif"],
+        mono: ["var(--font-b612-mono)", "ui-monospace", "monospace"],
       },
     },
   },

@@ -1,14 +1,14 @@
 {
-  "captured": "2026-11-04",
+  "captured": "2026-11-05",
   "screenshot": {
     "path": "docs/screenshot.png",
-    "sha256": "a20f241f33e1aacce54d2c63b73b9059fda42a32afc01cb66313a691f1315352",
+    "sha256": "5a17f94803203d9538019cf5f6f6d5a38a80034b35568acdec24bdb8549f5591",
     "viewport": "1440x900 @2x, full page",
     "badge": "Live engine"
   },
   "og": {
     "path": "frontend/public/og.png",
-    "sha256": "a702e107f0f4d71b81e9a3bb5b348aef5bc9eec8ba1c00b9e62fff7d4aaa6e23",
+    "sha256": "6653de2e5f0f428c8a29f3576776876dd7ce30542949abee54f98000f9a08f59",
     "viewport": "1200x630 @2x, zoom 0.75",
     "badge": "Demo data",
     "build": "production, no NEXT_PUBLIC_API_URL",

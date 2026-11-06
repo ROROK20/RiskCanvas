@@ -19,7 +19,7 @@ RiskCanvas is a Python library, REST API and demo dashboard for portfolio risk (
 <p align="center">
   <img src="docs/screenshot.png" alt="RiskCanvas — portfolio risk dashboard with VaR/CVaR, return distribution, Monte Carlo fan chart and crisis stress tests" width="100%">
   <br>
-  <em>Captured 2026-11-04. Build a portfolio and the real engine returns VaR/CVaR, a return distribution, a Monte-Carlo fan chart and six crisis stress scenarios. <code>docker compose up</code> for the full stack.</em>
+  <em>Captured 2026-11-05. Build a portfolio and the real engine returns VaR/CVaR, a return distribution, a Monte-Carlo fan chart and six crisis stress scenarios. <code>docker compose up</code> for the full stack.</em>
 </p>
 
 ---
@@ -53,7 +53,7 @@ cd RiskCanvas
 docker compose up --build      # or:  make demo
 ```
 
-Then open **http://localhost:3004**. A green **"Live engine"** badge in the
+Then open **http://localhost:3004**. A **"Live engine"** label in the
 header confirms the dashboard is talking to the FastAPI engine on
 **http://localhost:8004**. Adjust allocations and the real engine recomputes
 every metric.
@@ -79,7 +79,7 @@ FastAPI engine (:8004)  ──►  riskcanvas core: numpy / scipy
 ```
 
 > With no API configured, or if the API fails, the frontend
-> falls back to its in-browser demo data (a yellow **"Demo data"** badge appears, and
+> falls back to its in-browser demo data (a **"Demo data"** label lights up, and
 > the banner says which of the three happened: no engine connected, the engine could
 > not be reached in time, or it answered with an error), so `npm run build` and a
 > static, no-backend deploy still render.
@@ -769,7 +769,7 @@ either image changes without the other, if the preview stops being the demo stat
 or if the engine stops computing the screenshot's cards from that request;
 `make smoke` fails if the demo stops showing the preview's cards. A deploy with an
 engine shows "Live engine" on the page and the same demo-state preview. Last
-captured 2026-11-04.
+captured 2026-11-05.
 
 **Live-fire smoke test** — end-to-end proof against the real engine: a
 beta-1 portfolio reproduces all six documented drawdowns over HTTP, a

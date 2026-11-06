@@ -1,6 +1,11 @@
 import type { Metadata } from "next";
+import { B612, B612_Mono } from "next/font/google";
 import "./globals.css";
 import { resolveSiteUrl } from "@/lib/siteUrl.mjs";
+
+// The typeface drawn for Airbus flight decks. It exists in 400 and 700 only.
+const b612 = B612({ weight: ["400", "700"], subsets: ["latin"], variable: "--font-b612" });
+const b612Mono = B612_Mono({ weight: ["400", "700"], subsets: ["latin"], variable: "--font-b612-mono" });
 
 // Absolute og / twitter image URLs need the site's public origin. Without
 // NEXT_PUBLIC_SITE_URL a production build ships no preview image rather
@@ -49,8 +54,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="font-mono antialiased">{children}</body>
+    <html lang="en" className={`${b612.variable} ${b612Mono.variable}`}>
+      <body className="font-sans antialiased">{children}</body>
     </html>
   );
 }

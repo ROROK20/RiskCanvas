@@ -24,9 +24,9 @@ export function heldFractions(percentWeights) {
 export const RECOMPUTE_CAPTION = {
   // Nothing on screen yet (e.g. the first asset after an empty portfolio).
   none: "Computing: no result yet.",
-  preview: "Connecting to the engine; until it responds the numbers below are an in-browser preview.",
-  engine: "Recomputing: the numbers below are the last engine result until the engine responds.",
-  demo: "Recomputing: the numbers below are the last in-browser estimate until the engine responds.",
+  preview: "Connecting to the engine; until it responds the numbers on this page are an in-browser preview.",
+  engine: "Recomputing: the numbers on this page are the last engine result until the engine responds.",
+  demo: "Recomputing: the numbers on this page are the last in-browser estimate until the engine responds.",
 };
 
 /**
