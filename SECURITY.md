@@ -60,6 +60,8 @@ at the top of `riskcanvas/api/app.py`, and `tests/test_api.py` covers them.
 - `start` / `end`: `YYYY-MM-DD`, `start` from 1900-01-01 and not in the future, `end` after
   `start`; with `returns`, the observations' dates must end by today.
 - Types are strict: `true`, `"0.5"` and `start: 0` are a `422`, not coerced.
+- An unknown body field or query parameter is ignored, not a `422`, and named in `warnings`
+  (`ignored_fields`): at most 5 names, each cut to 40 characters.
 - Live-ticker mode (no `returns`): at most **20** tickers, each a sequential yfinance download
   (plus SPY for stress), network-bound and **outside** the budget below. A public deployment
   should prefer `returns` or rate-limit this.

@@ -3,6 +3,24 @@
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- `warnings` code `ignored_fields` on every portfolio endpoint. It names a body field or
+  query parameter the endpoint does not take. Such names are still ignored, not refused,
+  but a misspelt `periods_per_yeer` no longer passes in silence.
+- `warnings` code `assumed_periods_per_year` on `/portfolio/analyze`, and on
+  `/portfolio/montecarlo` under `drift=risk_free`. It fires when undated `returns` are
+  read at 252 a year only because `periods_per_year` is not stated. Read that way, a
+  crypto series shows 17% less annual volatility than it has.
+
+### Fixed
+
+- `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
+  from `start`. A series starting on the 29th to 31st used to stick on the 28th after the
+  first short month, so its `period` ended up to three days early.
+
 ## [0.1.0] — first public release
 
 2026-11-04

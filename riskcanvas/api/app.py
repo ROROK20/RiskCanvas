@@ -161,6 +161,8 @@ def _dated_as(periods: int | None) -> str:
 class PortfolioRequest(BaseModel):
     # Set when returns mode dated the series back from today (no `start`).
     _start_derived: bool = PrivateAttr(default=False)
+    # Top-level body keys this model does not define: ignored, and named in `warnings`.
+    _ignored_fields: list[str] = PrivateAttr(default_factory=list)
     weights: dict[Ticker, Number] = Field(
         ...,
         description=(
@@ -415,6 +417,18 @@ class PortfolioRequest(BaseModel):
                 )
         return self
 
+    @model_validator(mode="wrap")
+    @classmethod
+    def _record_ignored_fields(cls, data, handler) -> "PortfolioRequest":
+        """A key this model does not define is ignored, as pydantic does by default, so
+        a client that sends more than the API reads keeps working; it is recorded so
+        every endpoint names it in `warnings` (``ignored_fields``). A misspelt
+        ``periods_per_yeer`` otherwise changes nothing, without a word."""
+        model = handler(data)
+        if isinstance(data, dict):
+            model._ignored_fields = sorted(str(k) for k in data if k not in cls.model_fields)
+        return model
+
 
 def _build_portfolio(request: PortfolioRequest, loader: PortfolioLoader):
     """
@@ -602,6 +616,66 @@ def _close_warnings(request: PortfolioRequest, beta_source: str | None = None) -
 def _assumed_daily(request: PortfolioRequest) -> bool:
     """Are these returns read as daily only because nothing said otherwise?"""
     return request.returns is not None and request.periods_per_year is None
+
+
+def _assumed_rate_warnings(request: PortfolioRequest, uses: str) -> list[dict[str, str]]:
+    """``assumed_periods_per_year`` when ``returns``, which carry no dates, are read as
+    daily on business days, 252 a year, only because the request states no
+    ``periods_per_year``. ``uses`` says which of the endpoint's figures that rate moves:
+    /portfolio/analyze's annual statistics and /portfolio/montecarlo's ``risk_free``
+    drift. Every other figure counts observations and does not depend on it. Read this
+    way, a 7-day series shows sqrt(252 / 365) of its annual volatility, 17% low."""
+    if not _assumed_daily(request):
+        return []
+    return [{
+        "code": "assumed_periods_per_year",
+        "message": (
+            f"`returns` carry no dates, so they are read as daily on business days: {TRADING_DAYS} "
+            f"observations a year. {uses} A series that trades every day, such as crypto, has "
+            f"{CALENDAR_DAYS} a year, weekly 52, monthly 12: state `periods_per_year`, or "
+            f"{TRADING_DAYS} to confirm this reading."
+        ),
+    }]
+
+
+# `ignored_fields` names at most this many keys, each cut to this many characters.
+MAX_IGNORED_NAMES = 5
+MAX_IGNORED_NAME_LEN = 40
+
+
+def _key_list(keys: list[str]) -> str:
+    shown = ", ".join(
+        f"`{k[:MAX_IGNORED_NAME_LEN]}{'...' if len(k) > MAX_IGNORED_NAME_LEN else ''}`"
+        for k in keys[:MAX_IGNORED_NAMES]
+    )
+    more = len(keys) - MAX_IGNORED_NAMES
+    return shown + (f" and {more} more" if more > 0 else "")
+
+
+def _ignored_warnings(request: PortfolioRequest, raw: Request) -> list[dict[str, str]]:
+    """``ignored_fields`` when the body has keys the request model does not define, or
+    the URL has query parameters the endpoint does not take. Both are ignored, not
+    refused, so a client that sends more than this API reads keeps working; the warning
+    names them (at most ``MAX_IGNORED_NAMES``, each cut to ``MAX_IGNORED_NAME_LEN``
+    characters) so that a misspelt name is not silent."""
+    known_query = {p.alias for p in raw.scope["route"].dependant.query_params}
+    query = sorted(set(raw.query_params) - known_query)
+    parts = []
+    if request._ignored_fields:
+        parts.append(f"body field(s) {_key_list(request._ignored_fields)}")
+    if query:
+        parts.append(f"query parameter(s) {_key_list(query)}")
+    if not parts:
+        return []
+    return [{
+        "code": "ignored_fields",
+        "message": (
+            f"Not part of this request, so ignored: {' and '.join(parts)}. Nothing they say was "
+            f"applied; check the spelling. The body takes {', '.join(PortfolioRequest.model_fields)}"
+            + (f"; this endpoint's query takes {', '.join(sorted(known_query))}" if known_query else "")
+            + "."
+        ),
+    }]
 
 
 def _series_warnings(
@@ -907,7 +981,7 @@ def list_scenarios():
 
 
 @app.post("/portfolio/analyze")
-def analyze_portfolio(request: PortfolioRequest):
+def analyze_portfolio(request: PortfolioRequest, raw: Request):
     """Full risk + performance analysis.
 
     Every statistic that is undefined for the input — a ratio with a zero
@@ -929,10 +1003,16 @@ def analyze_portfolio(request: PortfolioRequest):
             "portfolio": request.name,
             "n_assets": portfolio.n_assets,
             **_window(portfolio),
-            "warnings": _start_warnings(request) + _history_warnings(len(portfolio.returns), (0.95, 0.99))
+            "warnings": _ignored_warnings(request, raw) + _start_warnings(request)
+            + _history_warnings(len(portfolio.returns), (0.95, 0.99))
             + _cap_warnings(rm, (0.95, 0.99))
             + _series_warnings(request, portfolio)
-            + _plausibility_warnings(rm, (0.95, 0.99), perf.cagr, assumed_daily=_assumed_daily(request)),
+            + _plausibility_warnings(rm, (0.95, 0.99), perf.cagr, assumed_daily=_assumed_daily(request))
+            + _assumed_rate_warnings(
+                request,
+                "The annual figures (volatility, CAGR, Sharpe, Sortino, Calmar) use that rate, so a "
+                f"crypto series shows annual volatility {1 - math.sqrt(TRADING_DAYS / CALENDAR_DAYS):.0%} low.",
+            ),
             "risk_free_rate": RISK_FREE,
             "risk": risk.to_dict(),
             "performance": perf.to_dict(),
@@ -950,6 +1030,7 @@ def analyze_portfolio(request: PortfolioRequest):
 @app.post("/portfolio/var")
 def compute_var(
     request: PortfolioRequest,
+    raw: Request,
     portfolio_value: float = Query(
         1_000_000, gt=0, le=MAX_PORTFOLIO_VALUE, allow_inf_nan=False
     ),
@@ -993,7 +1074,7 @@ def compute_var(
         return {
             "portfolio_value": portfolio_value,
             **_window(portfolio),
-            "warnings": _start_warnings(request)
+            "warnings": _ignored_warnings(request, raw) + _start_warnings(request)
             + _history_warnings(len(portfolio.returns), (0.90, 0.95, 0.99))
             + _cap_warnings(rm, (0.90, 0.95, 0.99))
             + _series_warnings(request, portfolio)
@@ -1013,7 +1094,7 @@ def compute_var(
 
 
 @app.post("/portfolio/stress")
-def stress_test(request: PortfolioRequest):
+def stress_test(request: PortfolioRequest, raw: Request):
     """Run all crisis stress scenarios (drawdown-calibrated deterministic paths).
 
     The scenarios are EQUITY-MARKET shocks only: each scenario's S&P 500 path
@@ -1072,7 +1153,7 @@ def stress_test(request: PortfolioRequest):
             "beta_source": source,
             "beta_note": note,
             "beta_r_squared": None if r_squared is None else round(r_squared, 6),
-            "warnings": _start_warnings(request) + stress_warnings
+            "warnings": _ignored_warnings(request, raw) + _start_warnings(request) + stress_warnings
             + _history_warnings(len(portfolio.returns))
             + _series_warnings(request, portfolio, beta_source=source),
             "scenarios": [
@@ -1099,6 +1180,7 @@ def stress_test(request: PortfolioRequest):
 @app.post("/portfolio/montecarlo")
 def monte_carlo(
     request: PortfolioRequest,
+    raw: Request,
     n_paths: int = Query(DEFAULT_PATHS, ge=MIN_PATHS, le=MAX_PATHS),
     horizon_days: int = Query(DEFAULT_HORIZON_DAYS, ge=1, le=MAX_HORIZON_DAYS),
     method: MCMethod = Query(
@@ -1193,11 +1275,15 @@ def monte_carlo(
                 for band in result.percentile_bands
             ],
             "percentile_table": result.percentile_table.to_dict(orient="records"),
-            "warnings": _start_warnings(request) + _history_warnings(len(portfolio.returns))
+            "warnings": _ignored_warnings(request, raw) + _start_warnings(request)
+            + _history_warnings(len(portfolio.returns))
             + (_bootstrap_warnings(len(portfolio.returns), horizon_days)
                if method == "bootstrap" else [])
             + _drift_warnings(result, portfolio.portfolio_returns.to_numpy())
-            + _series_warnings(request, portfolio, horizon_days),
+            + _series_warnings(request, portfolio, horizon_days)
+            + (_assumed_rate_warnings(
+                request, f"drift=risk_free spreads its {RISK_FREE:.0%} a year over that many observations."
+            ) if drift == "risk_free" else []),
         }
     except HTTPException:
         raise

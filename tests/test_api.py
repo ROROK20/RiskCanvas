@@ -1192,13 +1192,20 @@ def test_tail_rule_is_per_confidence_level():
 
 
 def test_long_history_has_no_warnings_on_any_endpoint():
-    for endpoint in ("/portfolio/analyze", "/portfolio/var", "/portfolio/montecarlo?n_paths=1000&horizon_days=5"):
+    """With its rate stated, a long history has nothing to flag anywhere. Left unstated,
+    only /analyze, whose annual figures use the rate, says it assumed 252."""
+    endpoints = ("/portfolio/analyze", "/portfolio/var", "/portfolio/montecarlo?n_paths=1000&horizon_days=5")
+    for endpoint in endpoints:
+        assert client.post(endpoint, json={**_body(), "periods_per_year": 252}).json()["warnings"] == [], endpoint
+    for endpoint in endpoints[1:]:
         assert client.post(endpoint, json=_body()).json()["warnings"] == [], endpoint
+    assert _codes(client.post(endpoints[0], json=_body()).json()) == ["assumed_periods_per_year"]
 
 
 def test_short_history_flags_analyze_montecarlo_and_stress():
     body = _short(15)
-    assert _codes(client.post("/portfolio/analyze", json=body).json()) == ["short_history_tail", "short_history"]
+    assert _codes(client.post("/portfolio/analyze", json=body).json()) == [
+        "short_history_tail", "short_history", "assumed_periods_per_year"]
     assert _codes(client.post("/portfolio/montecarlo?n_paths=1000&horizon_days=5", json=body).json()) == ["short_history"]
     assert _codes(client.post("/portfolio/stress", json={**body, "beta": 1.0}).json()) == ["short_history"]
 
@@ -1701,7 +1708,10 @@ class TestPeriodsPerYear:
         plain = client.post("/portfolio/analyze", json=self._body(series, start="2020-01-01")).json()
         stated = client.post("/portfolio/analyze", json=self._body(series, start="2020-01-01", periods_per_year=252)).json()
         assert plain["risk"] == stated["risk"] and plain["performance"] == stated["performance"]
-        assert plain["period"] == stated["period"] and plain["warnings"] == stated["warnings"]
+        assert plain["period"] == stated["period"]
+        # The only difference: stating 252 confirms what the default assumed.
+        assert plain["warnings"][:-1] == stated["warnings"]
+        assert _codes(plain)[-1:] == ["assumed_periods_per_year"]
 
     @pytest.mark.parametrize("rate", [1, 4, 12, 26, 52, 100, 200, 261, 365])
     def test_every_rate_annualises_and_dates_in_order(self, rate):
@@ -1773,6 +1783,106 @@ class TestPeriodsPerYear:
         low = client.post("/portfolio/stress", json=daily).json()["beta_used"]
         better = client.post("/portfolio/stress", json=compounded).json()["beta_used"]
         assert low < 0.65 and better == pytest.approx(1.01, abs=0.005)   # the true beta is 1.1
+
+
+class TestAssumedRateIsStated:
+    """`returns` carry no dates, so with no `periods_per_year` they are read at 252 a year.
+    A 7-day series' annual volatility then read sqrt(252 / 365) of its value, 17% low,
+    with nothing in `warnings`."""
+
+    SERIES = np.random.default_rng(31).normal(0.001, 0.03, 730).tolist()
+
+    def _body(self, **kw):
+        return {"weights": {"BTC-USD": 1}, "returns": {"BTC-USD": self.SERIES}, "start": "2022-01-03", **kw}
+
+    def test_analyze_says_its_annual_figures_assumed_252(self):
+        undated = client.post("/portfolio/analyze", json=self._body()).json()
+        assert undated["risk"]["periods_per_year"] == 252
+        message = next(w["message"] for w in undated["warnings"] if w["code"] == "assumed_periods_per_year")
+        stated = client.post("/portfolio/analyze", json=self._body(periods_per_year=365)).json()
+        ratio = undated["risk"]["annual_vol"] / stated["risk"]["annual_vol"]
+        assert ratio == pytest.approx(np.sqrt(252 / 365), rel=1e-3)
+        assert f"annual volatility {1 - ratio:.0%} low" in message and "`periods_per_year`" in message
+        assert "assumed_periods_per_year" not in _codes(stated)
+        confirmed = client.post("/portfolio/analyze", json=self._body(periods_per_year=252)).json()
+        assert "assumed_periods_per_year" not in _codes(confirmed)
+        assert confirmed["risk"] == undated["risk"]
+        readme = " ".join((Path(__file__).resolve().parents[1] / "README.md").read_text().split())
+        assert f"of its annual volatility, {1 - ratio:.0%} low" in readme
+
+    def test_only_endpoints_whose_figures_use_the_rate_say_so(self):
+        """/var and /stress report nothing annual; Monte Carlo uses the rate only to
+        spread the risk-free drift."""
+        body = self._body()
+        assert "assumed_periods_per_year" not in _codes(client.post("/portfolio/var", json=body).json())
+        stress = client.post("/portfolio/stress", json={**body, "beta": 1.0}).json()
+        assert "assumed_periods_per_year" not in _codes(stress)
+        mc = "/portfolio/montecarlo?n_paths=1000&horizon_days=5"
+        for drift in ("zero", "historical"):
+            assert "assumed_periods_per_year" not in _codes(client.post(f"{mc}&drift={drift}", json=body).json())
+        rf = client.post(f"{mc}&drift=risk_free", json=body).json()
+        message = next(w["message"] for w in rf["warnings"] if w["code"] == "assumed_periods_per_year")
+        assert "drift=risk_free spreads its 2% a year" in message
+        stated = client.post(f"{mc}&drift=risk_free", json=self._body(periods_per_year=365)).json()
+        assert "assumed_periods_per_year" not in _codes(stated)
+
+    def test_dated_prices_are_measured_not_assumed(self, stub_yfinance):
+        body = {"weights": {"COIN7": 1.0}, "start": "2020-01-01", "end": "2024-03-01"}
+        out = client.post("/portfolio/analyze", json=body).json()
+        assert out["risk"]["periods_per_year"] == 365 and "assumed_periods_per_year" not in _codes(out)
+
+
+class TestIgnoredFieldsAreNamed:
+    """A key the API does not define was dropped without a word: `periods_per_yeer: 12`
+    read 120 monthly returns of 12% volatility as daily, 55%, in a 200 with no warning.
+    Such a key is still ignored, since a client may send more than this API reads, but
+    every endpoint now names it."""
+
+    BODY = {"weights": {"A": 1}, "returns": {"A": TestPeriodsPerYear.MONTHLY}, "start": "2010-01-29"}
+    ENDPOINTS = ("/portfolio/analyze", "/portfolio/var", "/portfolio/stress",
+                 "/portfolio/montecarlo?n_paths=1000&horizon_days=5")
+
+    @pytest.mark.parametrize("endpoint", ENDPOINTS)
+    def test_a_misspelt_field_is_named_and_changes_nothing(self, endpoint):
+        plain = client.post(endpoint, json=self.BODY).json()
+        typo = client.post(endpoint, json={**self.BODY, "periods_per_yeer": 12})
+        assert typo.status_code == 200, typo.text[:200]
+        out = typo.json()
+        assert out["warnings"][0]["code"] == "ignored_fields"
+        assert "body field(s) `periods_per_yeer`" in out["warnings"][0]["message"]
+        assert "periods_per_year" in out["warnings"][0]["message"]   # names what the body takes
+        assert {**out, "warnings": out["warnings"][1:]} == plain
+
+    def test_an_unknown_query_parameter_is_named_too(self):
+        out = client.post("/portfolio/montecarlo?n_path=1000&horizon_days=5", json=_body()).json()
+        assert out["warnings"][0]["code"] == "ignored_fields"
+        message = out["warnings"][0]["message"]
+        assert "query parameter(s) `n_path`" in message and "n_paths" in message
+        assert out["n_paths"] == 10_000   # the default ran: the misspelling changed nothing
+
+    def test_no_documented_name_is_flagged(self):
+        body = {**self.BODY, "end": "2020-01-01", "name": "P", "market_returns": TestPeriodsPerYear.MONTHLY,
+                "beta": 1.0, "max_gap_days": 12, "periods_per_year": 12, "allow_large_returns": False}
+        for endpoint in ("/portfolio/analyze", "/portfolio/var?portfolio_value=5", "/portfolio/stress",
+                         "/portfolio/montecarlo?n_paths=1000&horizon_days=5&method=gbm&drift=zero&seed=1"):
+            out = client.post(endpoint, json=body)
+            assert out.status_code == 200, f"{endpoint}: {out.text[:200]}"
+            assert "ignored_fields" not in _codes(out.json()), endpoint
+
+    def test_the_message_stays_short_however_many_keys_arrive(self):
+        extra = {f"{'x' * 100}{i:02d}": i for i in range(50)}
+        message = client.post("/portfolio/var", json={**_body(), **extra}).json()["warnings"][0]["message"]
+        assert "and 45 more" in message and "x" * 41 not in message and len(message) < 1000
+        from riskcanvas.api.app import MAX_IGNORED_NAME_LEN, MAX_IGNORED_NAMES
+
+        security = " ".join((Path(__file__).resolve().parents[1] / "SECURITY.md").read_text().split())
+        assert f"at most {MAX_IGNORED_NAMES} names, each cut to {MAX_IGNORED_NAME_LEN} characters" in security
+
+    def test_a_private_attribute_name_sets_nothing(self):
+        """`_start_derived` is the model's private state, not a field: sent as a key it is
+        ignored like any other, and no start is reported as derived."""
+        out = client.post("/portfolio/var", json={**_body(), "_start_derived": True}).json()
+        assert _codes(out) == ["ignored_fields"] and "`_start_derived`" in out["warnings"][0]["message"]
 
 
 class TestImplausibleVolatility:

@@ -397,7 +397,11 @@ volatility, VaR and stress losses then read low), and on `/portfolio/analyze` an
 `/portfolio/var` `implausible_statistics` for a VaR outside 0 to 100%, a CAGR
 above +1,000% a year or annual volatility above 100%. `returns` are read as daily
 unless `periods_per_year` says otherwise: send 12 for monthly returns or 52 for
-weekly, and the annual figures and the observations' dates follow it.
+weekly, and the annual figures and the observations' dates follow it. Left unstated,
+`/portfolio/analyze` warns `assumed_periods_per_year` (and `/portfolio/montecarlo`
+under `drift=risk_free`): its annual figures assumed 252, which reads a crypto series'
+volatility 17% low. Every portfolio endpoint warns `ignored_fields` for a body field
+or query parameter it does not take, naming it.
 
 The report has one entry per confidence level (`90%`, `95%`, `99%`): `var_1d`,
 `cvar_1d` (historical, 1-day), `var_10d` (`var_1d × √10`), and
@@ -454,6 +458,8 @@ Request body schema (`PortfolioRequest`):
   prices to accept, as above; one over 12 days is flagged as `long_gap_spanned`.
 - Types are strict: `true`, `"0.5"`, or a number given as a date are a 422,
   never coerced.
+- A field not listed here, or a query parameter the endpoint does not take, is
+  ignored, not refused, and named in `warnings` as `ignored_fields`.
 - A body that is not JSON is a 422 (`json_invalid`) too. One that cannot even be decoded,
   because it is not UTF-8 or is nested past the parser's limit, is FastAPI's 400.
 - `beta` (optional, `|beta| <= 4`), `market_returns` (optional, aligned with

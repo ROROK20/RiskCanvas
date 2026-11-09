@@ -514,6 +514,10 @@ weekend `start` moves to the next Monday, reported in `warnings` as
   CAGR's years are `n / periods_per_year`. Without it `returns` are read as daily:
   120 monthly returns of 12% true volatility read 55% (× √21), and a seeded CAGR of
   4.2% read +136% (measured 2026-11-04, `tests/test_api.py`).
+- Unknown names — a body field the API does not define, or a query parameter the
+  endpoint does not take, is ignored rather than refused, so a client that sends more
+  keeps working. Every portfolio endpoint names it in `warnings` as `ignored_fields`,
+  so a misspelt `periods_per_yeer` does not pass in silence.
 
 **`/portfolio/var` keys name their horizon.** Per confidence level (90, 95,
 99%), in currency units of `portfolio_value` at full floating-point precision
@@ -578,7 +582,11 @@ trading days: calendar days on a 7-day series (`calendar_day_horizon`), weeks,
 months or whatever one observation is below 252 a year (`non_daily_horizon`).
 `returns` mode dates its observations as business days, so it reads 252, unless
 `periods_per_year` states the rate: then nothing is measured and only the horizon
-warnings can apply.
+warnings can apply. The 252 is then an assumption, and `/portfolio/analyze` says so
+in `warnings` as `assumed_periods_per_year`, as does `/portfolio/montecarlo` under
+`drift=risk_free`, which spreads its 2% a year over it. Read this way, a crypto series
+shows √(252/365) of its annual volatility, 17% low. Stating `periods_per_year`, 252
+included, removes the warning.
 
 **The risk-free rate is 2% a year.** Sharpe, Sortino, downside volatility and
 Omega measure excess return over `RISK_FREE` (0.02), spread evenly over the
