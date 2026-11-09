@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 
 from riskcanvas.metrics.risk import RiskMetrics, RiskReport, observations_per_year, periods_per_year
-from riskcanvas.metrics.performance import PerformanceMetrics, PerformanceReport
+from riskcanvas.metrics.performance import PerformanceMetrics
 from riskcanvas.portfolio.loader import PortfolioLoader
 
 
