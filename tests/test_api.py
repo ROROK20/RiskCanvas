@@ -6,6 +6,9 @@ payload, so no network (yfinance) is touched. We assert 200s and genuine,
 correctly-shaped numeric results from numpy/scipy.
 """
 
+import re
+import time
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
 import numpy as np
@@ -1099,10 +1102,38 @@ def test_unknown_montecarlo_method_is_a_422_like_every_other_bad_input(method):
     assert r.json()["detail"][0]["loc"] == ["query", "method"]
 
 
-def _bdays_ending_today(n):
-    from datetime import date
+def _bdays_ending_today(n, today):
+    return pd.bdate_range(end=today, periods=n)
 
-    return pd.bdate_range(end=date.today(), periods=n)
+
+def _default_start() -> date:
+    """`start` when a request omits it (2020-01-01)."""
+    from riskcanvas.api.app import PortfolioRequest
+
+    return PortfolioRequest.model_fields["start"].default
+
+
+# Returns mode dates its observations and refuses any after today, so every test of that
+# rule runs at today's date and again at later ones: a fixed date or length that only fits
+# today's calendar (2,000 business days from the default start end 2027-08-31, 120 months
+# 2029-12-01) fails now, not on the day it runs out.
+LATER_TODAYS = ("2029-12-03", "2071-03-16")
+
+
+@pytest.fixture(params=[None, *LATER_TODAYS], ids=["today", *LATER_TODAYS])
+def today(request, monkeypatch):
+    """The date the API reads as today: the real one, then each of ``LATER_TODAYS``.
+    ``date.today()`` is ``fromtimestamp(time.time())`` and calls ``time.time``, so
+    shifting it moves the API's clock. Pandas' ``Timestamp.today()`` reads the C clock
+    and does not move, so these tests take today from here, never from pandas."""
+    if request.param is None:
+        return date.today()
+    later = date.fromisoformat(request.param)
+    real = time.time
+    shift = datetime(later.year, later.month, later.day, 12).timestamp() - real()
+    monkeypatch.setattr(time, "time", lambda: real() + shift)
+    assert date.today() == later, "the clock did not move, so this run would prove nothing"
+    return later
 
 
 @pytest.mark.parametrize("start", ["9999-01-01", "2262-04-01"])
@@ -1116,16 +1147,16 @@ def test_returns_mode_start_in_the_future_is_a_422(start):
     assert "future" in r.text
 
 
-def test_returns_mode_dates_running_past_today_are_a_422():
-    idx = _bdays_ending_today(30)
+def test_returns_mode_dates_running_past_today_are_a_422(today):
+    idx = _bdays_ending_today(30, today)
     body = {"weights": {"A": 1}, "returns": {"A": [0.001] * 30}, "start": idx[-5].date().isoformat()}
     r = client.post("/portfolio/var", json=body)
     assert r.status_code == 422, r.text[:200]
     assert f"on or before {idx[0].date().isoformat()}" in r.text
 
 
-def test_returns_mode_window_ending_today_is_accepted():
-    idx = _bdays_ending_today(30)
+def test_returns_mode_window_ending_today_is_accepted(today):
+    idx = _bdays_ending_today(30, today)
     body = {"weights": {"A": 1}, "returns": {"A": [0.001, -0.002] * 15}, "start": idx[0].date().isoformat()}
     r = client.post("/portfolio/analyze", json=body)
     assert r.status_code == 200, r.text[:200]
@@ -1468,19 +1499,22 @@ def test_a_standard_calendar_with_many_holes_is_flagged_sparse():
 # --- Long series, capped VaR, erased trends ---------------------------------
 
 
-def test_long_returns_without_start_are_dated_back_from_today():
-    """More than ~1,785 observations without `start` are dated back from today: the default
-    2020-01-01 would date them past today."""
-    from datetime import date
+def test_long_returns_without_start_are_dated_back_from_today(today):
+    """A series with more observations than there are business days from the 2020-01-01
+    default to today is dated back from today: from the default it would end in the
+    future."""
+    from riskcanvas.api.app import MAX_RETURNS_LEN
 
-    rng = np.random.default_rng(71)
-    out = client.post("/portfolio/var", json={"weights": {"A": 1}, "returns": {"A": rng.normal(0, 0.01, 2000).tolist()}})
+    n = len(pd.bdate_range(_default_start(), today)) + 1    # the last lands after today
+    assert n <= MAX_RETURNS_LEN, "no series this long is accepted: the default start needs moving"
+    body = {"weights": {"A": 1}, "returns": {"A": np.random.default_rng(71).normal(0, 0.01, n).tolist()}}
+    out = client.post("/portfolio/var", json=body)
     assert out.status_code == 200, out.text[:200]
     j = out.json()
-    assert j["period"].endswith(pd.bdate_range(end=date.today(), periods=1)[0].date().isoformat())
+    assert j["period"].endswith(pd.bdate_range(end=today, periods=1)[0].date().isoformat())
     assert "start_derived_from_today" in _codes(j)
-    explicit = {"weights": {"A": 1}, "returns": {"A": [0.0] * 2000}, "start": "2020-01-01"}
-    assert client.post("/portfolio/var", json=explicit).status_code == 422   # an explicit start is not moved
+    explicit = client.post("/portfolio/var", json={**body, "start": _default_start().isoformat()})
+    assert explicit.status_code == 422 and "after today" in explicit.text   # an explicit start is not moved
     assert "start_derived_from_today" not in _codes(client.post("/portfolio/var", json=_body()).json())
 
 
@@ -1661,16 +1695,33 @@ class TestPeriodsPerYear:
         assert j["risk"]["periods_per_year"] == rate
         assert j["risk"]["annual_vol"] == pytest.approx(pd.Series(series).std() * np.sqrt(rate), abs=1e-5)
 
-    def test_no_start_dates_it_back_from_today_at_that_rate(self):
-        out = client.post("/portfolio/analyze", json=self._body(periods_per_year=12)).json()
-        assert "start_derived_from_today" in _codes(out)
-        message = next(w["message"] for w in out["warnings"] if w["code"] == "start_derived_from_today")
-        assert "12 dates a year" in message
-        assert pd.Timestamp(out["period"].split(" → ")[1]).date() <= pd.Timestamp.today().date()
+    @staticmethod
+    def _months_past(today):
+        """Monthly returns that, dated from the 2020-01-01 default, end after ``today``:
+        the last falls on the first of the following month."""
+        start = _default_start()
+        n = (today.year - start.year) * 12 + today.month - start.month + 2
+        z = np.random.default_rng(6).normal(0, 1, n)
+        return (0.004 + z * 0.12 / np.sqrt(12)).tolist()
 
-    def test_a_late_start_names_the_latest_one_that_fits(self):
-        r = client.post("/portfolio/analyze", json=self._body(periods_per_year=12, start="2020-01-01"))
+    def test_no_start_dates_it_back_from_today_at_that_rate(self, today):
+        out = client.post("/portfolio/analyze", json=self._body(self._months_past(today), periods_per_year=12))
+        assert out.status_code == 200, out.text[:200]
+        j = out.json()
+        assert "start_derived_from_today" in _codes(j)
+        message = next(w["message"] for w in j["warnings"] if w["code"] == "start_derived_from_today")
+        assert "12 dates a year" in message
+        last = pd.Timestamp(j["period"].split(" → ")[1]).date()
+        assert today - timedelta(days=31) < last <= today
+
+    def test_a_late_start_names_the_latest_one_that_fits(self, today):
+        series = self._months_past(today)
+        r = client.post("/portfolio/analyze", json=self._body(series, periods_per_year=12,
+                                                               start=_default_start().isoformat()))
         assert r.status_code == 422 and "12 dates a year" in r.text
+        latest = re.search(r"on or before (\d{4}-\d{2}-\d{2})", r.text).group(1)
+        fits = client.post("/portfolio/analyze", json=self._body(series, periods_per_year=12, start=latest))
+        assert fits.status_code == 200, fits.text[:200]
 
     def test_a_weekend_start_is_not_moved_when_not_on_business_days(self):
         out = client.post("/portfolio/analyze", json=self._body(periods_per_year=12, start="2010-01-02")).json()
