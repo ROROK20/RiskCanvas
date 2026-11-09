@@ -42,6 +42,9 @@ export const metadata: Metadata = {
     description: DESCRIPTION,
     type: "website",
     siteName: "RiskCanvas",
+    // og:url, so a shared link's card resolves to the demo itself. Like the image, it
+    // is left out when there is no public origin rather than naming localhost.
+    ...(SITE_URL ? { url: SITE_URL } : {}),
     images: OG_IMAGES,
   },
   twitter: {

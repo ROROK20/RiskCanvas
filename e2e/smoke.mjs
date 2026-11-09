@@ -327,6 +327,13 @@ try {
   await check("UI Monte Carlo label states the engine's path count", () => {
     if (!uiText.includes("5,000 paths, GBM")) throw new Error('missing "5,000 paths, GBM"');
   });
+  await check("og:url names the site the preview image is served from", async () => {
+    const og = await page.evaluate(() => ({
+      url: document.querySelector('meta[property="og:url"]')?.getAttribute("content"),
+      image: document.querySelector('meta[property="og:image"]')?.getAttribute("content"),
+    }));
+    if (!og.url || !og.image || new URL(og.url).origin !== new URL(og.image).origin) throw new Error(JSON.stringify(og));
+  });
   await check("a non-positive Portfolio Value is refused, not used", async () => {
     // The input accepted 0 and negative amounts.
     const input = page.getByTestId("portfolio-value");
@@ -385,6 +392,21 @@ try {
     const body = await german.innerText("body");
     if (!/\$\d{1,3},\d{3}/.test(body) || /\$\d{1,3}\.\d{3}\b/.test(body)) throw new Error("money is not formatted en-US");
     if (germanErrors.length) throw new Error(`${germanErrors.length}: ${germanErrors.slice(0, 2).join(" | ").slice(0, 160)}`);
+  });
+
+  // iOS Safari zooms the page into a focused text field whose text is under 16px.
+  console.log("UI on a phone-sized screen:");
+  const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
+  await phone.goto(UI, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await check("390px wide: every text field is at least 16px, so focusing one does not zoom", async () => {
+    await phone.getByTestId("portfolio-value").waitFor({ timeout: 60000 });
+    const sizes = await phone.$$eval(
+      "input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea",
+      (els) => els.map((e) => [e.id || e.tagName, parseFloat(getComputedStyle(e).fontSize)]),
+    );
+    if (!sizes.length) throw new Error("no text field found");
+    const small = sizes.filter(([, px]) => px < 16);
+    if (small.length) throw new Error(small.map(([id, px]) => `${id} ${px}px`).join(", "));
   });
 
   // The sliders must not flood the engine (the free plan the README warns about):

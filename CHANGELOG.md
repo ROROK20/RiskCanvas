@@ -14,8 +14,17 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   `/portfolio/montecarlo` under `drift=risk_free`. It fires when undated `returns` are
   read at 252 a year only because `periods_per_year` is not stated. Read that way, a
   crypto series shows 17% less annual volatility than it has.
+- The dashboard's social-preview tags include `og:url` when `NEXT_PUBLIC_SITE_URL` is set,
+  so a shared link's card resolves to the demo itself.
+
+### Removed
+
+- `lucide-react`, a frontend dependency nothing imported.
 
 ### Fixed
+
+- The dashboard's Portfolio Value field is 16px on phones, so iOS Safari no longer zooms
+  the page when it is tapped.
 
 - `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
   from `start`. A series starting on the 29th to 31st used to stick on the 28th after the
