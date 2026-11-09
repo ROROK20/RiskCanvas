@@ -1659,19 +1659,36 @@ class TestPeriodsPerYear:
         assert "read 55% (× √21), and a seeded CAGR of 4.2% read +136%" in readme
 
     def test_stated_monthly_reads_as_monthly(self):
-        out = client.post("/portfolio/analyze", json=self._body(periods_per_year=12)).json()
+        out = client.post("/portfolio/analyze", json=self._body(periods_per_year=12, start="2010-01-31")).json()
         s = pd.Series(self.MONTHLY)
         assert out["risk"]["periods_per_year"] == 12
         assert out["risk"]["annual_vol"] == pytest.approx(0.12, abs=1e-3)
         assert out["performance"]["cagr"] == pytest.approx(float((1 + s).prod() ** (1 / 10) - 1), abs=1e-5)
         assert out["performance"]["cagr"] == pytest.approx(0.0417, abs=1e-3)
         assert out["n_observations"] == 120
+        assert out["period"] == "2010-01-31 → 2019-12-31"    # 119 whole months on
         first, last = out["period"].split(" → ")
         assert (pd.Timestamp(last) - pd.Timestamp(first)).days == pytest.approx(365.25 * 119 / 12, abs=3)
         assert 0 < out["performance"]["positive_months"] < 1
         assert "implausible_statistics" not in _codes(out)
         assert "non_daily_horizon" in _codes(out) and "long_gap_spanned" not in _codes(out)
         assert "non_standard_calendar" not in _codes(out) and "sparse_calendar" not in _codes(out)
+
+    @pytest.mark.parametrize("rate, start, dates", [
+        (12, "2010-01-31", ["2010-01-31", "2010-02-28", "2010-03-31", "2010-04-30", "2010-05-31"]),
+        (4, "2011-11-30", ["2011-11-30", "2012-02-29", "2012-05-30", "2012-08-30", "2012-11-30"]),
+        (1, "2012-02-29", ["2012-02-29", "2013-02-28", "2014-02-28", "2015-02-28", "2016-02-29"]),
+    ], ids=["monthly", "quarterly", "annual"])
+    def test_whole_months_count_from_start(self, rate, start, dates):
+        """Stepping from each previous date stayed on the 28th after the first short month:
+        monthly from Jan 31 read Mar 28, Apr 28, so a series ended up to three days early."""
+        from riskcanvas.api.app import _observation_dates
+
+        assert [d.isoformat() for d in _observation_dates(date.fromisoformat(start), 5, rate).date] == dates
+        body = self._body([0.01, -0.02, 0.03, -0.01, 0.02], periods_per_year=rate, start=start)
+        out = client.post("/portfolio/analyze", json=body)
+        assert out.status_code == 200, out.text[:200]
+        assert out.json()["period"] == f"{dates[0]} → {dates[-1]}"
 
     @pytest.mark.parametrize("endpoint", ENDPOINTS)
     def test_every_endpoint_takes_it(self, endpoint):

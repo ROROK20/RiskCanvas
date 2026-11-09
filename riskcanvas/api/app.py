@@ -131,11 +131,17 @@ _ISO_DATE = re.compile(r"\d{4}-\d{2}-\d{2}")
 def _observation_dates(start: date, n: int, periods: int | None = None) -> pd.DatetimeIndex:
     """The dates ``returns`` mode gives its ``n`` observations: consecutive business
     days, or with a stated rate that many a year: whole months where it divides 12,
-    so monthly statistics stay monthly, and evenly spaced days otherwise."""
+    so monthly statistics stay monthly, and evenly spaced days otherwise.
+
+    Whole months count from ``start``, the ``k``-th date ``start + k`` months (the
+    month's last day where it is shorter), so a series from Jan 31 falls on Feb 28,
+    Mar 31, Apr 30. Stepping from each previous date instead, as a
+    ``DateOffset`` frequency does, stays on the 28th after the first February."""
     if periods is None or periods == TRADING_DAYS:
         return pd.bdate_range(start, periods=n)
     if 12 % periods == 0:
-        return pd.date_range(start, periods=n, freq=pd.DateOffset(months=12 // periods))
+        first = pd.Timestamp(start)
+        return pd.DatetimeIndex([first + pd.DateOffset(months=k * (12 // periods)) for k in range(n)])
     return pd.Timestamp(start) + pd.to_timedelta(np.floor(np.arange(n) * DAYS_PER_YEAR / periods), unit="D")
 
 
