@@ -40,9 +40,10 @@ are thin presentation layers on top.
 │      run_scenario · run_all · custom_shock · estimate_beta         │
 │      beta_from_returns                                             │
 └───────────────────────────────┬──────────────────────────────────┘
-                                 │ optional data source
+                                 │ live-ticker calls only
                                  ▼
-                         yfinance (live market prices)
+                         yfinance (live market prices; installed with the
+                         package, imported only when a live call runs)
 ```
 
 ## The central data structure: `Portfolio`

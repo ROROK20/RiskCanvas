@@ -25,13 +25,27 @@ jobs:
       # each supported Python (3.11+). It tests forward compatibility, not
       # the floors themselves: no job installs the minimum versions. The
       # exact pins were resolved on 3.12, need 3.12+ (no 3.11 wheels for
-      # numpy 2.5.1 / scipy 1.18.0), and are exercised by the `smoke` job
-      # below, which installs with them.
+      # numpy 2.5.1 / scipy 1.18.0), and are exercised by the `pins` job
+      # below (this suite) and the `smoke` job (the live-fire driver).
       - run: pip install -e ".[dev]"
       - run: pytest tests/ --cov=riskcanvas --cov-report=xml -v
       - uses: codecov/codecov-action@v4
         with:
           file: coverage.xml
+
+  pins:
+    # The same suite on the exact versions in requirements.txt, the set the
+    # Dockerfile ships, so the pins are tested on every push rather than
+    # whenever someone remembers to build a fresh venv.
+    name: Backend tests (Python 3.12, exact pins)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" -c requirements.txt
+      - run: pytest tests/
 
   frontend:
     name: Frontend build & lint

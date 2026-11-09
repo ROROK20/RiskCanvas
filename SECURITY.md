@@ -25,7 +25,7 @@ is git-ignored and `.env.example` holds only placeholders.
 
 ## Dependency audits
 
-Measured 2026-11-04 with `pip-audit` 2.10.1, Node 23.9 and npm 10.9. Advisory databases move
+Measured 2026-11-09 with `pip-audit` 2.10.1, Node 23.9 and npm 10.9. Advisory databases move
 faster than this file, so re-run these rather than trust it.
 
 | Reproduce | Result |

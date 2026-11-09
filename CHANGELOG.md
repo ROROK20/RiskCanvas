@@ -17,6 +17,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - The dashboard's social-preview tags include `og:url` when `NEXT_PUBLIC_SITE_URL` is set,
   so a shared link's card resolves to the demo itself.
 
+### Changed
+
+- CI runs the test suite on the exact pins in `requirements.txt` (Python 3.12) on every push,
+  beside the matrix on the newest versions. The pins were last tested by hand.
+
 ### Removed
 
 - `lucide-react`, a frontend dependency nothing imported.

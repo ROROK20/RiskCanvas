@@ -756,14 +756,13 @@ pytest tests/ --cov=riskcanvas --cov-report=term-missing -v
 # tests/test_monte_carlo.py::TestMonteCarloSimulator::test_percentile_paths_ordered PASSED
 # tests/test_stress.py::TestStressTester::test_high_beta_worse_drawdown PASSED
 # tests/test_stress.py::TestRecoveryEstimate::test_negative_drift_gives_none_not_sentinel PASSED
-# 1008 passed
+# 1052 passed
 ```
 
-*(1008 tests, green 2026-11-04 in a development environment that is not on the exact pins; the
-last run in a fresh Python 3.12 venv on the pinned `requirements.txt` set was the same day, at 947
-tests. CI runs them on the newest versions `setup.py` admits, on Python 3.11 and 3.12
-(`pip install -e ".[dev]"`, no pins); the only job that installs the pins, `smoke`, runs the
-live-fire driver, not pytest.)*
+*(1052 tests, green 2026-11-09 on Python 3.12 and 3.11 in development environments that are not
+on the exact pins. CI runs them on every push on the newest versions `setup.py` admits, on Python
+3.11 and 3.12 (`pip install -e ".[dev]"`, no pins), and on the exact pins in `requirements.txt`,
+on Python 3.12 (the `pins` job).)*
 
 Or via the Makefile: `make test` (see `make help` for all targets).
 
