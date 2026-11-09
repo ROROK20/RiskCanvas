@@ -6,7 +6,7 @@ setup(
     version="0.1.0",
     author="Rohan Khiani",
     # Project contact — same address SECURITY.md publishes for reports.
-    author_email="rohan.s.khiani.vora@gmail.com",
+    author_email="rskv.khiani@gmail.com",
     description=(
         "RiskCanvas is a Python library, REST API and demo dashboard for portfolio risk (VaR, "
         "expected shortfall, Monte Carlo and crisis stress tests), built so you can check its "

@@ -10,7 +10,7 @@
 ## Reporting a Vulnerability
 
 **Please do not open a public GitHub issue for security vulnerabilities.** Report privately to
-**rohan.s.khiani.vora@gmail.com** or through GitHub's
+**rskv.khiani@gmail.com** or through GitHub's
 [private vulnerability reporting](https://github.com/ROROK20/RiskCanvas/security/advisories/new),
 with the impact and steps to reproduce. You get an acknowledgement within **48 hours** and a
 triage within **7 days**. A fix and its disclosure are coordinated with you, with credit in the
