@@ -436,8 +436,10 @@ Endpoints: `POST /portfolio/analyze`, `POST /portfolio/var`,
 `POST /portfolio/stress`, `POST /portfolio/montecarlo`, `GET /scenarios`,
 `GET /health`.
 
-A body that is not JSON is a `422` (`json_invalid`); one that cannot even be decoded,
-because it is not UTF-8 or is nested past the parser's limit, is FastAPI's `400`.
+A body that is not JSON is a `422` (`json_invalid`). Bytes are decoded as Python's JSON
+parser decodes them: UTF-8, or UTF-16 or UTF-32 told apart by the first bytes, with or
+without a byte-order mark. A body that none of those decode (Latin-1, say), or that is
+nested past the parser's limit, is FastAPI's `400`.
 
 **Request rules** (all enforced; violations return `422`, never a silent
 rewrite). Numbers are JSON numbers and dates ISO strings: `true`, `"0.5"`, and

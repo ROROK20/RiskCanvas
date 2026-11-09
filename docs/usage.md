@@ -460,8 +460,9 @@ Request body schema (`PortfolioRequest`):
   never coerced.
 - A field not listed here, or a query parameter the endpoint does not take, is
   ignored, not refused, and named in `warnings` as `ignored_fields`.
-- A body that is not JSON is a 422 (`json_invalid`) too. One that cannot even be decoded,
-  because it is not UTF-8 or is nested past the parser's limit, is FastAPI's 400.
+- A body that is not JSON is a 422 (`json_invalid`) too. It may be UTF-8, UTF-16 or
+  UTF-32, with or without a byte-order mark; one that none of those decode (Latin-1, say),
+  or that is nested past the parser's limit, is FastAPI's 400.
 - `beta` (optional, `|beta| <= 4`), `market_returns` (optional, aligned with
   `returns`) — stress-test beta inputs.
 - `name` (default `"Portfolio"`, at most 200 characters).

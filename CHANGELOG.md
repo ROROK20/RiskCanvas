@@ -20,6 +20,8 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 - `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
   from `start`. A series starting on the 29th to 31st used to stick on the 28th after the
   first short month, so its `period` ended up to three days early.
+- The README and `docs/usage.md` said any body that is not UTF-8 is a `400`. UTF-16 and
+  UTF-32 bodies are decoded like UTF-8, and only bytes none of them decode are a `400`.
 
 ## [0.1.0] — first public release
 

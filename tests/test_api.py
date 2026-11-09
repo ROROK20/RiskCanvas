@@ -1960,10 +1960,34 @@ class TestBodiesThatAreNotJson:
         assert r.status_code == 422
         assert "input" not in r.json()["detail"][0]
 
-    @pytest.mark.parametrize("body", [b"\xff\xfe{", b"[" * 200_000], ids=["not-utf8", "nested-too-deep"])
+    @pytest.mark.parametrize("body", [
+        b"\xff\xfe{",
+        '{"weights": {"A": 1}, "name": "caf\xe9"}'.encode("latin-1"),
+        b"[" * 200_000,
+    ], ids=["broken-utf16", "latin-1", "nested-too-deep"])
     def test_a_body_that_cannot_be_decoded_is_a_400(self, body):
         r = client.post("/portfolio/analyze", content=body, headers={"content-type": "application/json"})
         assert r.status_code == 400
+
+    @pytest.mark.parametrize("encoding", ["utf-8-sig", "utf-16", "utf-16-le", "utf-16-be",
+                                          "utf-32", "utf-32-le", "utf-32-be"])
+    def test_utf16_and_utf32_are_read_like_utf8(self, encoding):
+        """The docs said anything but UTF-8 was a 400; a UTF-16 body was a 200. Python's
+        parser tells UTF-8, -16 and -32 apart by the first bytes, BOM or not."""
+        import json
+
+        text, headers = json.dumps(_body()), {"content-type": "application/json"}
+        utf8 = client.post("/portfolio/var", content=text.encode("utf-8"), headers=headers)
+        other = client.post("/portfolio/var", content=text.encode(encoding), headers=headers)
+        assert other.status_code == 200 and other.json() == utf8.json()
+
+    def test_the_docs_state_what_is_decoded(self):
+        root = Path(__file__).resolve().parents[1]
+        readme = " ".join((root / "README.md").read_text().split())
+        usage = " ".join((root / "docs" / "usage.md").read_text().split())
+        assert "UTF-8, or UTF-16 or UTF-32 told apart by the first bytes" in readme
+        assert "It may be UTF-8, UTF-16 or UTF-32" in usage
+        assert "because it is not UTF-8" not in readme + usage
 
 
 class TestEntrypoint:
