@@ -317,6 +317,46 @@ class TestCovarianceFactorHasNoJitter:
         assert np.allclose(f[2], 0.0)
 
 
+class TestSimulatedCovarianceIsTheInputCovariance:
+    """GBM and Student-t draw ``z @ F.T``, whose covariance is ``F @ F.T == cov``. Drawn as
+    ``z @ F`` it would be ``F.T @ F``, which equals ``cov`` only for a symmetric factor:
+    with Cholesky's lower triangle and two assets of 1% and 3% daily volatility at
+    correlation 0.79, the first asset's variance comes out 6.6 times too large, the
+    second's 0.37 times. A portfolio holding one asset reads that asset's simulated
+    one-day log return, and with the same seed both portfolios draw the same paths, so
+    the pair gives the simulated covariance matrix. Over seeds 0-19 it is within 0.7%
+    (GBM) and 1.8% (Student-t) of the input."""
+
+    @staticmethod
+    def _pair():
+        rng = np.random.default_rng(11)
+        a = rng.normal(0, 0.01, 1500)
+        b = 2.4 * a + rng.normal(0, 0.018, 1500)
+        return pd.DataFrame({"A": a, "B": b}, index=pd.bdate_range("2018-01-01", periods=1500))
+
+    @pytest.mark.parametrize("method", ["simulate_gbm", "simulate_t_distribution"])
+    def test_every_entry_matches(self, method):
+        returns = self._pair()
+        sim = MonteCarloSimulator(n_paths=200_000, seed=7)
+        legs = [
+            np.log(getattr(sim, method)(PortfolioLoader().from_returns_df(returns, weights=held), 1).terminal_values)
+            for held in ({"A": 1.0, "B": 0.0}, {"A": 0.0, "B": 1.0})
+        ]
+        assert np.allclose(np.cov(np.vstack(legs)), returns.cov().to_numpy(), rtol=0.04, atol=0)
+
+
+class TestProbabilityOfLossCountsOnlyLosses:
+    """``prob_loss`` is the share of paths ending BELOW the starting value: a path that ends
+    where it began has lost nothing, so a flat history simulates no chance of loss, not a
+    certain one."""
+
+    @pytest.mark.parametrize("method", ["simulate_gbm", "simulate_t_distribution", "simulate_bootstrap"])
+    def test_a_flat_portfolio_never_loses(self, method):
+        res = getattr(MonteCarloSimulator(n_paths=2000, seed=3), method)(_portfolio_from([0.0] * 60), 20)
+        assert np.all(res.terminal_values == 1.0)
+        assert res.prob_loss == 0.0 and res.standard_errors["prob_loss"] == 0.0
+
+
 class TestCircularBootstrap:
     """The circular block bootstrap draws starts over all n observations and wraps, so
     every observation is equally likely at every day of every path. Starts limited to

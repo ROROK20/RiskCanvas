@@ -950,3 +950,45 @@ class TestTailRatioAndRollingSharpeValues:
         window = s.iloc[-12:] - 0.02 / 12
         expected = window.mean() / window.std(ddof=1) * np.sqrt(12)
         assert PerformanceMetrics(s).rolling_sharpe(window=12).iloc[-1] == pytest.approx(expected, rel=1e-9)
+
+
+class TestEveryRatioUsesTheSeriesOwnRate:
+    """Sharpe, Sortino, downside volatility, rolling volatility and the information ratio
+    annualise by the series' own observations per year. On business days that is 252, where
+    ``sqrt(periods)`` and a hard-coded ``sqrt(252)`` agree, so each is checked by hand on a
+    monthly series (12 a year) and a 7-day one (365)."""
+
+    SERIES = {
+        12: pd.Series(np.random.default_rng(21).normal(0.006, 0.04, 120),
+                      index=pd.date_range("2010-01-31", periods=120, freq="ME")),
+        365: pd.Series(np.random.default_rng(22).normal(0.001, 0.03, 730),
+                       index=pd.date_range("2023-01-01", periods=730, freq="D")),
+    }
+
+    @pytest.fixture(params=[12, 365], ids=["monthly", "7-day"])
+    def rated(self, request):
+        s = self.SERIES[request.param]
+        assert periods_per_year(s.index) == request.param
+        return s, request.param
+
+    def test_sharpe_sortino_and_downside_volatility(self, rated):
+        s, p = rated
+        excess = s - 0.02 / p
+        down = float(np.sqrt(np.mean(np.minimum(excess.to_numpy(), 0.0) ** 2)))
+        perf = PerformanceMetrics(s, risk_free_rate=0.02).compute_all()
+        assert perf.sharpe == pytest.approx(excess.mean() / excess.std() * np.sqrt(p), rel=1e-12)
+        assert perf.sortino == pytest.approx(excess.mean() * p / (down * np.sqrt(p)), rel=1e-12)
+        assert RiskMetrics(s, risk_free_rate=0.02).compute_all().downside_vol == pytest.approx(
+            down * np.sqrt(p), rel=1e-12)
+
+    def test_rolling_volatility(self, rated):
+        s, p = rated
+        expected = s.iloc[-12:].std() * np.sqrt(p)
+        assert PerformanceMetrics(s).rolling_vol(window=12).iloc[-1] == pytest.approx(expected, rel=1e-12)
+
+    def test_information_ratio(self, rated):
+        s, p = rated
+        bench = pd.Series(np.random.default_rng(23).normal(0.0005, 0.02, len(s)), index=s.index)
+        excess = s - bench
+        expected = excess.mean() * p / (excess.std() * np.sqrt(p))
+        assert RiskMetrics(s).information_ratio(bench) == pytest.approx(expected, rel=1e-12)
