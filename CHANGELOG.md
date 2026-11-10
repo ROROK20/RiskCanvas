@@ -35,6 +35,12 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   power of ten, in percent), evenly spaced, and no label hangs past either end of the
   plot. They were bucket midpoints, and the last was kept however close it fell: at 375px
   the axis read `-7.5% -5.0% -2.5% 0.0% 4.6%`.
+- The Monte Carlo Fan's day axis steps by a trading month, quarter or half year (21, 63
+  or 126 days) from day 0, the smallest step whose labels stay 16px apart, so its ticks
+  are evenly spaced. It labelled the engine's checkpoint days, keeping the last however
+  close it fell: `0 20 45 71 96 121 146 171 197 222 252` at 1440px. The axis is numeric
+  now, so each band point sits at its own day rather than at an even index (the engine's
+  checkpoints are 5 or 6 days apart).
 
 - `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
   from `start`. A series starting on the 29th to 31st used to stick on the 28th after the

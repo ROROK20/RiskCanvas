@@ -1,3 +1,5 @@
+import { labelWidth } from "./axisLabel.mjs";
+
 /**
  * Equal-width histogram of daily returns for the dashboard's distribution
  * chart, shared by the live engine view (liveRisk.ts) and the in-browser
@@ -37,12 +39,6 @@ export function histogram(values, bucketCount, tailThreshold) {
 export function pctLabel(value, decimals) {
   return `${(value * 100).toFixed(decimals)}%`;
 }
-
-// Advance widths of B612, the axis font, in em (measured at 12px in Chromium and
-// WebKit: digit 7.89px, "%" 10.89px, "-" 5.48px, "." 3.69px), rounded up.
-const EM = { digit: 0.66, "%": 0.91, "-": 0.46, ".": 0.31 };
-const labelWidth = (label, fontSize) =>
-  [...label].reduce((w, c) => w + (EM[c] ?? EM.digit) * fontSize, 0);
 
 /**
  * The return axis under the histogram: it spans the buckets exactly, and its

@@ -1,3 +1,5 @@
+import { labelWidth } from "./axisLabel.mjs";
+
 /**
  * Monte Carlo fan-chart bands from per-day percentiles of simulated value.
  *
@@ -29,6 +31,32 @@ export function fanDomain(bands) {
   const lo = Math.min(...bands.map((b) => b.outer[0]));
   const hi = Math.max(...bands.map((b) => b.outer[1]));
   return [Math.floor(lo * 20) / 20, Math.ceil(hi * 20) / 20];
+}
+
+// Trading-calendar steps, in trading days: a day, a week, a month, a quarter,
+// half a year, a year, then whole years (the engine takes up to 2,520 days).
+const DAY_STEPS = [1, 5, 21, 63, 126, 252, 504, 1260, 2520];
+
+/**
+ * Ticks for the fan's day axis, which runs from day 0 to `horizon`: every
+ * multiple of one trading-calendar step from 0, so they are evenly spaced. The
+ * step is the smallest whose labels stay `minGap` px apart at this width. A
+ * horizon that is not a multiple of the step gets no extra end label, which
+ * would sit closer to its neighbour than the rest.
+ *
+ * @param {number} horizon the last day on the axis
+ * @param {number} plotWidth px between day 0 and the horizon
+ * @param {{ fontSize?: number, minGap?: number }} [options]
+ * @returns {number[]}
+ */
+export function dayTicks(horizon, plotWidth, { fontSize = 12, minGap = 16 } = {}) {
+  if (!(horizon > 0) || !(plotWidth > 0)) return [0];
+  for (const step of DAY_STEPS) {
+    const last = Math.floor(horizon / step) * step;
+    if ((step / horizon) * plotWidth < labelWidth(String(last), fontSize) + minGap) continue;
+    return Array.from({ length: last / step + 1 }, (_, k) => k * step);
+  }
+  return [0];
 }
 
 /**
