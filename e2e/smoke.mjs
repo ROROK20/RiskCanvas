@@ -394,20 +394,29 @@ try {
     if (germanErrors.length) throw new Error(`${germanErrors.length}: ${germanErrors.slice(0, 2).join(" | ").slice(0, 160)}`);
   });
 
-  // iOS Safari zooms the page into a focused text field whose text is under 16px.
-  console.log("UI on a phone-sized screen:");
-  const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })).newPage();
-  await phone.goto(UI, { waitUntil: "domcontentloaded", timeout: 60000 });
-  await check("390px wide: every text field is at least 16px, so focusing one does not zoom", async () => {
-    await phone.getByTestId("portfolio-value").waitFor({ timeout: 60000 });
-    const sizes = await phone.$$eval(
-      "input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea",
-      (els) => els.map((e) => [e.id || e.tagName, parseFloat(getComputedStyle(e).fontSize)]),
-    );
-    if (!sizes.length) throw new Error("no text field found");
-    const small = sizes.filter(([, px]) => px < 16);
-    if (small.length) throw new Error(small.map(([id, px]) => `${id} ${px}px`).join(", "));
-  });
+  // iOS Safari zooms the page into a focused text field whose text is under 16px,
+  // wherever the pointer is a finger: a phone held upright or sideways (844px), an iPad.
+  console.log("UI on touch screens:");
+  for (const [width, height, what] of [[390, 844, "a phone"], [844, 390, "a phone in landscape"], [820, 1180, "an iPad"]]) {
+    const touch = await browser.newContext({ viewport: { width, height }, isMobile: true, hasTouch: true });
+    const phone = await touch.newPage();
+    await phone.goto(UI, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await check(`${width}x${height} (${what}): every text field is at least 16px, so focusing one does not zoom, and nothing scrolls sideways`, async () => {
+      await phone.getByTestId("portfolio-value").waitFor({ timeout: 60000 });
+      const coarse = await phone.evaluate(() => matchMedia("(pointer: coarse)").matches);
+      if (!coarse) throw new Error("the context does not report a touch screen");
+      const sizes = await phone.$$eval(
+        "input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=hidden]), select, textarea",
+        (els) => els.map((e) => [e.id || e.tagName, parseFloat(getComputedStyle(e).fontSize)]),
+      );
+      if (!sizes.length) throw new Error("no text field found");
+      const small = sizes.filter(([, px]) => px < 16);
+      if (small.length) throw new Error(small.map(([id, px]) => `${id} ${px}px`).join(", "));
+      const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+      if (overflow > 0) throw new Error(`the page is ${overflow}px wider than the screen`);
+    });
+    await touch.close();
+  }
 
   // The sliders must not flood the engine (the free plan the README warns about):
   // ten steps at once are one ask of three POSTs, and a change aborts an ask in flight.

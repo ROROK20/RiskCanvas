@@ -250,8 +250,10 @@ export default function Home() {
                     if (Number.isFinite(v) && v > 0) setInitialValue(v);
                   }}
                   className={clsx(
-                    // 16px on phones: iOS Safari zooms the page into a focused field under 16px.
-                    "min-h-8 w-32 min-w-0 border bg-raised px-2 font-mono text-base text-readout sm:text-sm",
+                    // iOS Safari zooms the page into a focused field under 16px, so 14px takes a
+                    // wide screen AND a fine pointer (a mouse): a phone held sideways or an iPad,
+                    // whose pointer is coarse, stays at 16px.
+                    "min-h-8 w-32 min-w-0 border bg-raised px-2 font-mono text-base text-readout sm:[@media(pointer:fine)]:text-sm",
                     valueValid ? "border-rule-strong" : "border-fault",
                   )}
                   step={50_000}

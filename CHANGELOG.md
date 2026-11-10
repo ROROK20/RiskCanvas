@@ -28,8 +28,9 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixed
 
-- The dashboard's Portfolio Value field is 16px on phones, so iOS Safari no longer zooms
-  the page when it is tapped.
+- The dashboard's Portfolio Value field is 16px on phones and wherever the main pointer is
+  a finger (an iPhone held sideways, an iPad), so iOS Safari no longer zooms the page
+  when it is tapped. It is 14px only from 640px wide with a fine pointer, such as a mouse.
 
 - `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
   from `start`. A series starting on the 29th to 31st used to stick on the 28th after the
