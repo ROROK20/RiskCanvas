@@ -45,6 +45,9 @@ export interface MonteCarloPath {
 
 export interface ReturnDistribution {
   bucket: string;
+  lo: number;
+  mid: number;
+  hi: number;
   count: number;
   isTail: boolean;
 }

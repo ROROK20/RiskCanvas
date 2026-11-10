@@ -418,6 +418,42 @@ try {
     await touch.close();
   }
 
+  // The return axis read "-7.5% -5.0% -2.5% 0.0% 4.6%" at 375px: bucket midpoints,
+  // with the last kept however close it fell. Its ticks must be one round step apart.
+  console.log("UI Return Distribution axis:");
+  for (const width of [375, 1440]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto(UI, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await check(`${width}px: the return axis ticks are round values one step apart, evenly spaced, none past the plot's ends`, async () => {
+      await p.getByText("Global Financial Crisis (2008-2009)").first().waitFor({ timeout: 60000 });
+      await p.evaluate(() => document.fonts.ready);
+      const axis = await p.evaluate(() => {
+        const h = [...document.querySelectorAll("h3")].find((e) => e.textContent.trim() === "Return Distribution");
+        const svg = h.parentElement.querySelector("svg.recharts-surface");
+        const line = svg.querySelector(".recharts-xAxis .recharts-cartesian-axis-line").getBoundingClientRect();
+        return [...svg.querySelectorAll(".recharts-xAxis .recharts-cartesian-axis-tick")].map((g) => {
+          const label = g.querySelector("text").getBoundingClientRect();
+          return { text: g.textContent, x: Number(g.querySelector("line").getAttribute("x1")), left: label.left - line.left, right: label.right - line.left, end: line.width };
+        });
+      });
+      const labels = axis.map((t) => t.text).join(" ");
+      if (axis.length < 2) throw new Error(`${axis.length} ticks: ${labels}`);
+      const values = axis.map((t) => parseFloat(t.text));
+      const step = values[1] - values[0];
+      const mantissa = step / 10 ** Math.floor(Math.log10(step) + 1e-9);
+      if (![1, 2, 5].some((m) => near(mantissa, m, 1e-9))) throw new Error(`step ${step}%: ${labels}`);
+      for (let i = 1; i < axis.length; i++) {
+        if (!near(values[i] - values[i - 1], step, 1e-9)) throw new Error(`uneven values: ${labels}`);
+        if (!near(axis[i].x - axis[i - 1].x, axis[1].x - axis[0].x, 0.5)) throw new Error(`uneven spacing: ${axis.map((t) => t.x.toFixed(1)).join(" ")}`);
+        if (axis[i].left - axis[i - 1].right < 16) throw new Error(`${axis[i - 1].text} and ${axis[i].text} crowd`);
+      }
+      const out = axis.filter((t) => t.left < 0 || t.right > t.end);
+      if (out.length) throw new Error(`past the plot's ends: ${out.map((t) => t.text).join(" ")}`);
+    });
+    await ctx.close();
+  }
+
   // The sliders must not flood the engine (the free plan the README warns about):
   // ten steps at once are one ask of three POSTs, and a change aborts an ask in flight.
   console.log("UI slider burst:");
