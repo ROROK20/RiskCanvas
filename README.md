@@ -19,7 +19,7 @@ RiskCanvas is a Python library, REST API and demo dashboard for portfolio risk (
 <p align="center">
   <img src="docs/screenshot.png" alt="RiskCanvas — portfolio risk dashboard with VaR/CVaR, return distribution, Monte Carlo fan chart and crisis stress tests" width="100%">
   <br>
-  <em>Captured 2026-11-05. Build a portfolio and the real engine returns VaR/CVaR, a return distribution, a Monte-Carlo fan chart and six crisis stress scenarios. <code>docker compose up</code> for the full stack.</em>
+  <em>Captured 2026-11-10. Build a portfolio and the real engine returns VaR/CVaR, a return distribution, a Monte-Carlo fan chart and six crisis stress scenarios. <code>docker compose up</code> for the full stack.</em>
 </p>
 
 ---
@@ -778,7 +778,7 @@ either image changes without the other, if the preview stops being the demo stat
 or if the engine stops computing the screenshot's cards from that request;
 `make smoke` fails if the demo stops showing the preview's cards. A deploy with an
 engine shows "Live engine" on the page and the same demo-state preview. Last
-captured 2026-11-05.
+captured 2026-11-10.
 
 **Live-fire smoke test** — end-to-end proof against the real engine: a
 beta-1 portfolio reproduces all six documented drawdowns over HTTP, a

@@ -1,8 +1,8 @@
 {
-  "captured": "2026-11-05",
+  "captured": "2026-11-10",
   "screenshot": {
     "path": "docs/screenshot.png",
-    "sha256": "5a17f94803203d9538019cf5f6f6d5a38a80034b35568acdec24bdb8549f5591",
+    "sha256": "b03259a00b58447b4a4048ceac174c93f960765a2a29f4b0259b68b9575e84b3",
     "viewport": "1440x900 @2x, full page",
     "badge": "Live engine"
   },
