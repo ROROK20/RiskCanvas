@@ -284,7 +284,9 @@ export default function Home() {
                   step={1}
                   value={weight}
                   onChange={(e) => updateWeight(asset, Number(e.target.value))}
-                  className="h-6 min-w-0 flex-1"
+                  // A finger needs 44px: the slider's box is 24px tall only on a wide screen
+                  // with a mouse, as with the text field above.
+                  className="h-11 min-w-0 flex-1 sm:[@media(pointer:fine)]:h-6"
                 />
                 <div className="w-11 shrink-0 text-right font-mono text-sm text-readout">{weight}%</div>
                 {rescaled && (
@@ -295,7 +297,9 @@ export default function Home() {
                 <button
                   type="button"
                   onClick={() => removeAsset(asset)}
-                  className="h-7 w-7 shrink-0 text-xs text-label transition-colors duration-150 hover:text-readout"
+                  // 44px square for a finger; the negative margin lays it out at 28px, its old
+                  // width, so its box reaches into the gaps beside it and the slider keeps its length.
+                  className="-mx-2 h-11 w-11 shrink-0 text-xs text-label transition-colors duration-150 hover:text-readout sm:[@media(pointer:fine)]:mx-0 sm:[@media(pointer:fine)]:h-7 sm:[@media(pointer:fine)]:w-7"
                 >
                   ✕<span className="sr-only"> Remove {asset}</span>
                 </button>
@@ -317,7 +321,7 @@ export default function Home() {
                   key={a}
                   type="button"
                   onClick={() => addAsset(a)}
-                  className="min-h-7 border border-rule px-2 font-mono text-xs text-label transition-colors duration-150 hover:border-rule-strong hover:text-readout"
+                  className="min-h-11 border border-rule px-2 font-mono text-xs text-label transition-colors duration-150 hover:border-rule-strong hover:text-readout sm:[@media(pointer:fine)]:min-h-7"
                 >
                   + {a}
                 </button>
@@ -331,7 +335,7 @@ export default function Home() {
                   type="button"
                   title={Object.keys(w).join(" · ")}
                   onClick={() => setWeights(w as Record<string, number>)}
-                  className="min-h-7 border border-rule px-2 text-xs font-bold transition-colors duration-150 hover:border-rule-strong"
+                  className="min-h-11 border border-rule px-2 text-xs font-bold transition-colors duration-150 hover:border-rule-strong sm:[@media(pointer:fine)]:min-h-7"
                 >
                   {name}
                 </button>

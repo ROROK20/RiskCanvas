@@ -41,6 +41,11 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   close it fell: `0 20 45 71 96 121 146 171 197 222 252` at 1440px. The axis is numeric
   now, so each band point sits at its own day rather than at an even index (the engine's
   checkpoints are 5 or 6 days apart).
+- The Portfolio Allocation panel's controls take a finger on phones and wherever the main
+  pointer is one: each weight slider is 44px tall, each remove button 44px square, and the
+  add and preset buttons 44px tall. They were 24px and 28px, so a press 16px above or
+  below a slider's centre line landed on nothing. The sliders keep their length, and from
+  640px wide with a fine pointer the panel is as before.
 
 - `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
   from `start`. A series starting on the 29th to 31st used to stick on the 28th after the

@@ -415,6 +415,29 @@ try {
       const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       if (overflow > 0) throw new Error(`the page is ${overflow}px wider than the screen`);
     });
+    // The weight sliders were 24px tall and every button beside them 28px, so a press
+    // 16px off a slider's centre line landed on nothing.
+    await check(`${width}x${height} (${what}): every slider and button in the allocation panel is at least 44px tall, each remove button 44px wide, and a press 16px above or below a slider's centre lands on it`, async () => {
+      const r = await phone.evaluate(() => {
+        const panel = document.querySelector("#weight-SPY").closest("section");
+        const controls = [...panel.querySelectorAll('input[type="range"], button')].map((e) => {
+          const b = e.getBoundingClientRect();
+          return { name: e.id || e.textContent.trim().replace(/\s+/g, " "), remove: /Remove/.test(e.textContent), h: b.height, w: b.width };
+        });
+        const missed = [...panel.querySelectorAll('input[type="range"]')].filter((s) => {
+          s.scrollIntoView({ block: "center" }); // a point off the screen hits nothing
+          const b = s.getBoundingClientRect();
+          const x = b.left + b.width / 2;
+          const y = b.top + b.height / 2;
+          return document.elementFromPoint(x, y - 16) !== s || document.elementFromPoint(x, y + 16) !== s;
+        });
+        return { controls, missed: missed.map((s) => s.id) };
+      });
+      if (r.controls.filter((c) => c.name.startsWith("weight-")).length < 2) throw new Error("fewer than 2 sliders found");
+      const small = r.controls.filter((c) => c.h < 44 || (c.remove && c.w < 44));
+      if (small.length) throw new Error(small.map((c) => `${c.name} ${Math.round(c.w)}x${Math.round(c.h)}`).join(", ").slice(0, 200));
+      if (r.missed.length) throw new Error(`a press 16px off centre misses ${r.missed.join(", ")}`);
+    });
     await touch.close();
   }
 
