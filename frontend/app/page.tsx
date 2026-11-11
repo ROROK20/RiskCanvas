@@ -270,10 +270,14 @@ export default function Home() {
 
           <AllocationStrip shares={shares} decimals={rescaled ? 1 : 0} />
 
-          <ul className="mt-2 grid grid-cols-1 gap-x-10 gap-y-0.5 sm:grid-cols-2 min-[1200px]:grid-cols-3">
+          {/* Two columns from 768px and three from 1200px keep every slider at least 140px long. */}
+          <ul className="mt-2 grid grid-cols-1 gap-x-10 gap-y-0.5 md:grid-cols-2 min-[1200px]:grid-cols-3">
             {Object.entries(weights).map(([asset, weight]) => (
-              <li key={asset} className="flex min-h-8 items-center gap-2">
-                <label htmlFor={`weight-${asset}`} className="w-11 shrink-0 font-mono text-sm font-bold">
+              // The "used" share goes on a line of its own under the weight, so it never takes
+              // width from the slider: a slider that shrank while dragged moved its value away
+              // from the pointer.
+              <li key={asset} className="grid min-h-8 grid-cols-[2.75rem_minmax(0,1fr)_2.75rem_1.75rem] items-center gap-x-2">
+                <label htmlFor={`weight-${asset}`} className="font-mono text-sm font-bold">
                   {asset}
                 </label>
                 <input
@@ -286,11 +290,16 @@ export default function Home() {
                   onChange={(e) => updateWeight(asset, Number(e.target.value))}
                   // A finger needs 44px: the slider's box is 24px tall only on a wide screen
                   // with a mouse, as with the text field above.
-                  className="h-11 min-w-0 flex-1 sm:[@media(pointer:fine)]:h-6"
+                  className="h-11 w-full min-w-0 sm:[@media(pointer:fine)]:h-6"
                 />
-                <div className="w-11 shrink-0 text-right font-mono text-sm text-readout">{weight}%</div>
+                <div className="text-right font-mono text-sm text-readout">{weight}%</div>
                 {rescaled && (
-                  <div className="w-[5.25rem] shrink-0 whitespace-nowrap text-right text-xs text-readout" data-testid="analysed-share">
+                  <div
+                    // Tucked up under its weight on a touch layout, over the slider's 44px box,
+                    // which it lets presses through to.
+                    className="pointer-events-none col-span-2 col-start-2 row-start-2 -mt-2.5 whitespace-nowrap text-right text-xs leading-4 text-readout sm:[@media(pointer:fine)]:mt-0"
+                    data-testid="analysed-share"
+                  >
                     {shares && asset in shares ? `${(shares[asset] * 100).toFixed(1)}%` : "0.0%"} used
                   </div>
                 )}
@@ -299,7 +308,7 @@ export default function Home() {
                   onClick={() => removeAsset(asset)}
                   // 44px square for a finger; the negative margin lays it out at 28px, its old
                   // width, so its box reaches into the gaps beside it and the slider keeps its length.
-                  className="-mx-2 h-11 w-11 shrink-0 text-xs text-label transition-colors duration-150 hover:text-readout sm:[@media(pointer:fine)]:mx-0 sm:[@media(pointer:fine)]:h-7 sm:[@media(pointer:fine)]:w-7"
+                  className="col-start-4 row-start-1 -mx-2 h-11 w-11 text-xs text-label transition-colors duration-150 hover:text-readout sm:[@media(pointer:fine)]:mx-0 sm:[@media(pointer:fine)]:h-7 sm:[@media(pointer:fine)]:w-7"
                 >
                   ✕<span className="sr-only"> Remove {asset}</span>
                 </button>
@@ -308,9 +317,9 @@ export default function Home() {
           </ul>
           {rescaled && (
             <p className="mt-2 max-w-[75ch] text-sm text-readout" data-testid="rescale-note">
-              The weights are rescaled to sum to 100% (the &ldquo;used&rdquo; column): the analysis is a
-              fully invested portfolio, and dollar figures are for the full portfolio value, not
-              part of it held as cash.
+              The weights are rescaled to sum to 100% (the &ldquo;used&rdquo; share under each
+              weight): the analysis is a fully invested portfolio, and dollar figures are for the
+              full portfolio value, not part of it held as cash.
             </p>
           )}
           <div className="mt-2 flex flex-wrap items-center justify-between gap-x-10 gap-y-3">

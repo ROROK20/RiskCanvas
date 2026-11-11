@@ -46,6 +46,13 @@ this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
   add and preset buttons 44px tall. They were 24px and 28px, so a press 16px above or
   below a slider's centre line landed on nothing. The sliders keep their length, and from
   640px wide with a fine pointer the panel is as before.
+- Dragging a weight slider no longer moves its value away from the pointer. When the
+  weights left 100%, a "used" column appeared in every row and each slider lost 92px in
+  the middle of the drag: dragging SPY from 40% to 10% at 1440px ended at 16%. The "used"
+  share now sits under its weight, and the panel splits into two columns from 768px
+  rather than 640px, so no slider is shorter than 148px (it was 36px at 640px with the
+  "used" shares showing). From 768px, with a mouse and the weights at 100%, the panel is
+  pixel for pixel as before.
 
 - `returns` with `periods_per_year` 12 (or any rate dividing 12) are dated whole months
   from `start`. A series starting on the 29th to 31st used to stick on the 28th after the

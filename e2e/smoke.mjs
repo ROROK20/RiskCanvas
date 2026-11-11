@@ -416,29 +416,74 @@ try {
       if (overflow > 0) throw new Error(`the page is ${overflow}px wider than the screen`);
     });
     // The weight sliders were 24px tall and every button beside them 28px, so a press
-    // 16px off a slider's centre line landed on nothing.
-    await check(`${width}x${height} (${what}): every slider and button in the allocation panel is at least 44px tall, each remove button 44px wide, and a press 16px above or below a slider's centre lands on it`, async () => {
-      const r = await phone.evaluate(() => {
-        const panel = document.querySelector("#weight-SPY").closest("section");
-        const controls = [...panel.querySelectorAll('input[type="range"], button')].map((e) => {
-          const b = e.getBoundingClientRect();
-          return { name: e.id || e.textContent.trim().replace(/\s+/g, " "), remove: /Remove/.test(e.textContent), h: b.height, w: b.width };
+    // 16px off a slider's centre line landed on nothing. With the weights off 100%, each
+    // "used" share sits over the bottom of its slider's box and must let presses through.
+    await check(`${width}x${height} (${what}): every slider and button in the allocation panel is at least 44px tall, each remove button 44px wide, and a press 16px above or below a slider's centre or right end lands on it, with the weights at 100% and off it`, async () => {
+      const probe = () =>
+        phone.evaluate(() => {
+          const panel = document.querySelector("#weight-SPY").closest("section");
+          const controls = [...panel.querySelectorAll('input[type="range"], button')].map((e) => {
+            const b = e.getBoundingClientRect();
+            return { name: e.id || e.textContent.trim().replace(/\s+/g, " "), remove: /Remove/.test(e.textContent), h: b.height, w: b.width };
+          });
+          const missed = [...panel.querySelectorAll('input[type="range"]')].filter((s) => {
+            s.scrollIntoView({ block: "center" }); // a point off the screen hits nothing
+            const b = s.getBoundingClientRect();
+            const y = b.top + b.height / 2;
+            return [b.left + b.width / 2, b.right - 10].some(
+              (x) => document.elementFromPoint(x, y - 16) !== s || document.elementFromPoint(x, y + 16) !== s,
+            );
+          });
+          return { controls, missed: missed.map((s) => s.id) };
         });
-        const missed = [...panel.querySelectorAll('input[type="range"]')].filter((s) => {
-          s.scrollIntoView({ block: "center" }); // a point off the screen hits nothing
-          const b = s.getBoundingClientRect();
-          const x = b.left + b.width / 2;
-          const y = b.top + b.height / 2;
-          return document.elementFromPoint(x, y - 16) !== s || document.elementFromPoint(x, y + 16) !== s;
-        });
-        return { controls, missed: missed.map((s) => s.id) };
-      });
-      if (r.controls.filter((c) => c.name.startsWith("weight-")).length < 2) throw new Error("fewer than 2 sliders found");
-      const small = r.controls.filter((c) => c.h < 44 || (c.remove && c.w < 44));
+      const full = await probe();
+      if (full.controls.filter((c) => c.name.startsWith("weight-")).length < 2) throw new Error("fewer than 2 sliders found");
+      const small = full.controls.filter((c) => c.h < 44 || (c.remove && c.w < 44));
       if (small.length) throw new Error(small.map((c) => `${c.name} ${Math.round(c.w)}x${Math.round(c.h)}`).join(", ").slice(0, 200));
-      if (r.missed.length) throw new Error(`a press 16px off centre misses ${r.missed.join(", ")}`);
+      if (full.missed.length) throw new Error(`at 100%, a press 16px off centre misses ${full.missed.join(", ")}`);
+      await phone.getByText("Live engine", { exact: true }).first().waitFor({ timeout: 60000 }); // hydrated
+      await phone.locator("#weight-SPY").fill("10");
+      await phone.getByTestId("analysed-share").first().waitFor({ timeout: 10000 });
+      const off = await probe();
+      if (off.missed.length) throw new Error(`off 100%, a press 16px off centre misses ${off.missed.join(", ")}`);
     });
     await touch.close();
+  }
+
+  // Taking the weights off 100% added a "used" column to every row, so each slider lost 92px
+  // in the middle of a drag (the value under the pointer jumped), and at 640px a slider was
+  // left 36px long.
+  console.log("UI allocation rows:");
+  for (const width of [320, 640, 768, 1200, 1440]) {
+    const ctx = await browser.newContext({ viewport: { width, height: 900 } });
+    const p = await ctx.newPage();
+    await p.goto(UI, { waitUntil: "domcontentloaded", timeout: 60000 });
+    await check(`${width}px: dragging SPY from 40% to 10% shows the "used" shares, ends at 10%, and every slider keeps its length, at least 140px`, async () => {
+      // The badge comes from the engine's reply, so the page is hydrated: a drag on the
+      // server-rendered HTML alone is undone when React attaches.
+      await p.getByText("Live engine", { exact: true }).first().waitFor({ timeout: 60000 });
+      const lengths = () => p.$$eval('input[type="range"]', (els) => els.map((e) => Math.round(e.getBoundingClientRect().width)));
+      const before = await lengths();
+      const spy = p.locator("#weight-SPY");
+      await spy.scrollIntoViewIfNeeded();
+      const box = await spy.boundingBox();
+      // The native thumb is 16px wide: its centre runs from 8px in to 8px short of the end.
+      const at = (pct) => box.x + 8 + (pct / 100) * (box.width - 16);
+      const y = box.y + box.height / 2;
+      if ((await spy.inputValue()) !== "40") throw new Error(`SPY starts at ${await spy.inputValue()}%, not 40%`);
+      await p.mouse.move(at(40), y);
+      await p.mouse.down();
+      await p.mouse.move(at(10), y, { steps: 12 });
+      await p.mouse.up();
+      const value = Number(await spy.inputValue());
+      const after = await lengths();
+      const shares = await p.getByTestId("analysed-share").count();
+      if (shares !== before.length) throw new Error(`${shares} "used" shares shown for ${before.length} sliders`);
+      if (Math.abs(value - 10) > 2) throw new Error(`SPY ended at ${value}%, not 10%`);
+      if (after.join() !== before.join()) throw new Error(`slider lengths ${before.join("/")}px became ${after.join("/")}px`);
+      if (Math.min(...after) < 140) throw new Error(`a slider is ${Math.min(...after)}px long`);
+    });
+    await ctx.close();
   }
 
   // The return axis read "-7.5% -5.0% -2.5% 0.0% 4.6%" at 375px: bucket midpoints,
